@@ -132,6 +132,21 @@ large = values.filter(th >= 4)
 // {4, 5, 6}
 ```
 
+## Cartesian products
+
+Multiplying two vectors returns their Cartesian product as a
+`vector<pair<S, T>>`. The left vector determines the outer order:
+
+```cpp
+left = vector<int>{1, 2}
+right = vector<str>{"a", "b"}
+product = left * right
+// {{1, "a"}, {1, "b"}, {2, "a"}, {2, "b"}}
+```
+
+Either input may have a different element type. If either vector is empty,
+the result is empty.
+
 ## Vector comprehensions and `iota`
 
 A two-argument `vector<T>` declaration maps a source range into a new vector
