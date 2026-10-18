@@ -887,6 +887,15 @@ auto additional vec<S>.map(F f) {
     }
 }
 
+template <typename S, typename F>
+requires is_invocable_r_v<bool, F&, S>
+vec<S> additional vec<S>.filter(F f) const {
+    vec<S> res;
+    res.reserve(self.size());
+    for(S i: self) if(f(i)) res.push_back(i);
+    return res;
+}
+
 void solve();
 
 int main() {
