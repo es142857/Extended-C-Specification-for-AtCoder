@@ -259,7 +259,7 @@ def translate_casts(source: str) -> str:
 def translate_pair_member_aliases(source: str) -> str:
     """Translate pair `.f` and `.s` aliases to `.first` and `.second`."""
     mask = code_mask(source)
-    alias = re.compile(r"\\.[ \\t]*(?P<name>f|s)\\b")
+    alias = re.compile(r"\.[ \t]*(?P<name>f|s)\b")
     replacements = []
     for match in alias.finditer(source):
         if not mask[match.start()]:
