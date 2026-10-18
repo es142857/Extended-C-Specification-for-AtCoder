@@ -256,6 +256,29 @@ def translate_casts(source: str) -> str:
     return source
 
 
+def translate_pair_member_aliases(source: str) -> str:
+    """Translate pair `.f` and `.s` aliases to `.first` and `.second`."""
+    mask = code_mask(source)
+    alias = re.compile(r"\\.[ \\t]*(?P<name>f|s)\\b")
+    replacements = []
+    for match in alias.finditer(source):
+        if not mask[match.start()]:
+            continue
+        start = receiver_start(source, match.start(), mask)
+        receiver = source[start : match.start()].strip()
+        if re.fullmatch(
+            r"(?:0[xX][0-9A-Fa-f']+|0[bB][01']+|[0-9][0-9']*)",
+            receiver,
+        ):
+            continue
+        member = "first" if match.group("name") == "f" else "second"
+        replacements.append((match.start(), match.end(), f".{member}"))
+
+    for start, end, replacement in reversed(replacements):
+        source = source[:start] + replacement + source[end:]
+    return source
+
+
 def find_closing_angle(source: str, opening: int, mask: list[bool]) -> int:
     """Find the `>` paired with a template argument list's opening `<`."""
     depth = 0
@@ -1045,6 +1068,7 @@ def translate(preamble: Path, program: Path) -> str:
             f"(found in main.ecpp: {names})"
         )
 
+    translated_main = translate_pair_member_aliases(translated_main)
     translated_main = translate_iota_calls(translated_main)
     translated_main = translate_vector_comprehensions(translated_main)
     implicit_main = translate_implicit_let_declarations(
