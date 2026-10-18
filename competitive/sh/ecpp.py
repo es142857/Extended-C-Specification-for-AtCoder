@@ -177,7 +177,7 @@ def translate_calls(source: str, names: set[str]) -> str:
         # In a native member call, the receiver is evaluated before the
         # arguments.  A direct rewrite to a free function would lose that
         # guarantee because free-function argument order is unspecified.
-        if name == "map" and arguments:
+        if name in {"map", "filter"} and arguments:
             argument_mask = code_mask(arguments)
             argument_is_lambda = arguments.lstrip().startswith("[")
             uses_element_placeholder = not argument_is_lambda and any(
@@ -218,17 +218,17 @@ def translate_calls(source: str, names: set[str]) -> str:
             if uses_element_placeholder:
                 replacement = (
                     "([&](auto&& __ecpp_receiver) -> decltype(auto) { return "
-                    "__ecpp_dispatch_map("
+                    f"__ecpp_dispatch_{name}("
                     f"{forwarded_receiver}, {fallback}); "
                     f"}})({receiver})"
                 )
             else:
                 replacement = (
                     "([&](auto&& __ecpp_receiver) -> decltype(auto) { "
-                    "if constexpr (requires { __ecpp_additional_map("
+                    f"if constexpr (requires {{ __ecpp_additional_{name}("
                     f"__ecpp_receiver, {arguments}); }}) {{ "
-                    f"return __ecpp_dispatch_map({call_args}); "
-                    "} else { return __ecpp_dispatch_map("
+                    f"return __ecpp_dispatch_{name}({call_args}); "
+                    f"}} else {{ return __ecpp_dispatch_{name}("
                     f"{forwarded_receiver}, {fallback}); }} "
                     f"}})({receiver})"
                 )
