@@ -114,6 +114,24 @@ y = iota(3).map([] { return int(input()); })
 // Equivalent to supplying an unused argument to the lambda.
 ```
 
+## Filtering vectors
+
+`vector<S>.filter(f)` returns a new vector containing only the elements for
+which `f(element)` is true. The original vector is not changed:
+
+```cpp
+values = iota(1, 7)
+evens = values.filter([](ll x) { return x % 2 == 0; })
+// {2, 4, 6}
+```
+
+The `th` implicit-lambda shorthand is also available in `filter` expressions:
+
+```cpp
+large = values.filter(th >= 4)
+// {4, 5, 6}
+```
+
 ## Vector comprehensions and `iota`
 
 A two-argument `vector<T>` declaration maps a source range into a new vector
