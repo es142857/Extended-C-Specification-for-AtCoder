@@ -95,6 +95,86 @@ vec<str> input(int count) {
     return values;
 }
 
+vec<ll> __ecpp_iota(ll start, ll stop, ll step) {
+    if (step == 0) {
+        throw invalid_argument("iota() arg 3 must not be zero");
+    }
+
+    vec<ll> values;
+    ll value = start;
+    if (step > 0) {
+        while (value < stop) {
+            values.push_back(value);
+            __int128 next = (__int128)value + step;
+            if (next > (numeric_limits<ll>::max)()) break;
+            value = (ll)next;
+        }
+    } else {
+        while (value > stop) {
+            values.push_back(value);
+            __int128 next = (__int128)value + step;
+            if (next < (numeric_limits<ll>::min)()) break;
+            value = (ll)next;
+        }
+    }
+    return values;
+}
+
+vec<ll> __ecpp_iota(ll stop) {
+    return __ecpp_iota(0, stop, 1);
+}
+
+vec<ll> __ecpp_iota(ll start, ll stop) {
+    return __ecpp_iota(start, stop, 1);
+}
+
+template <typename T, typename Source, typename Mapper>
+vector<T> __ecpp_vector_comprehension(Source&& source, Mapper&& mapper) {
+    if constexpr (ranges::input_range<Source>) {
+        if constexpr (invocable<Mapper&, ranges::range_reference_t<Source>>) {
+            vector<T> result;
+            if constexpr (ranges::sized_range<Source>) {
+                result.reserve(ranges::size(source));
+            }
+            for (auto&& value : source) {
+                result.push_back(invoke(mapper, value));
+            }
+            return result;
+        } else {
+            return vector<T>(
+                forward<Source>(source), forward<Mapper>(mapper)
+            );
+        }
+    } else {
+        return vector<T>(forward<Source>(source), forward<Mapper>(mapper));
+    }
+}
+
+template <typename Source, typename Mapper>
+auto __ecpp_vector_comprehension(Source&& source, Mapper&& mapper) {
+    if constexpr (ranges::input_range<Source>) {
+        if constexpr (invocable<Mapper&, ranges::range_reference_t<Source>>) {
+            using T = decay_t<
+                invoke_result_t<Mapper&, ranges::range_reference_t<Source>>
+            >;
+            vector<T> result;
+            if constexpr (ranges::sized_range<Source>) {
+                result.reserve(ranges::size(source));
+            }
+            for (auto&& value : source) {
+                result.push_back(invoke(mapper, value));
+            }
+            return result;
+        } else {
+            return vector(
+                forward<Source>(source), forward<Mapper>(mapper)
+            );
+        }
+    } else {
+        return vector(forward<Source>(source), forward<Mapper>(mapper));
+    }
+}
+
 template <typename T>
 ostream& operator<<(ostream& os, vec<T> v) {
     for (T i: v) os << i << " ";

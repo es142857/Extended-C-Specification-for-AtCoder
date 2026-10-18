@@ -177,22 +177,61 @@ def translate_calls(source: str, names: set[str]) -> str:
         # In a native member call, the receiver is evaluated before the
         # arguments.  A direct rewrite to a free function would lose that
         # guarantee because free-function argument order is unspecified.
-        is_lambda = arguments.lstrip().startswith("[")
-        if name == "map" and arguments and not is_lambda:
-            fallback = (
-                "[&](auto&& __ecpp_map_value) -> decltype(auto) { return "
-                f"({arguments})(std::forward<decltype(__ecpp_map_value)>("
-                "__ecpp_map_value)); }"
+        if name == "map" and arguments:
+            argument_mask = code_mask(arguments)
+            argument_is_lambda = arguments.lstrip().startswith("[")
+            uses_element_placeholder = not argument_is_lambda and any(
+                argument_mask[placeholder.start()]
+                for placeholder in re.finditer(
+                    r"(?<![\w.:>])th\b", arguments
+                )
             )
-            replacement = (
-                "([&](auto&& __ecpp_receiver) -> decltype(auto) { "
-                "if constexpr (requires { __ecpp_additional_map("
-                f"__ecpp_receiver, {arguments}); }}) {{ "
-                f"return __ecpp_dispatch_map({call_args}); "
-                "} else { return __ecpp_dispatch_map("
-                f"{forwarded_receiver}, {fallback}); }} "
-                f"}})({receiver})"
+            zero_argument_lambda = bool(
+                re.match(
+                    r"^[ \t]*\[[^\]\n]*\][ \t]*(?:\([ \t]*\))?[ \t]*\{",
+                    arguments,
+                )
             )
+            if uses_element_placeholder:
+                fallback = (
+                    "[&](auto&& __ecpp_map_value) -> decltype(auto) { "
+                    "auto&& th = std::forward<decltype(__ecpp_map_value)>("
+                    "__ecpp_map_value); return "
+                    f"({arguments}); }}"
+                )
+            elif zero_argument_lambda:
+                fallback = (
+                    "[&](auto&& __ecpp_map_value) -> decltype(auto) { "
+                    "(void)__ecpp_map_value; return "
+                    f"({arguments})(); }}"
+                )
+            else:
+                fallback = (
+                    "[&](auto&& __ecpp_map_value) -> decltype(auto) { "
+                    "if constexpr (requires { "
+                    f"({arguments})(std::forward<decltype(__ecpp_map_value)>("
+                    "__ecpp_map_value)); }) { return "
+                    f"({arguments})(std::forward<decltype(__ecpp_map_value)>("
+                    "__ecpp_map_value)); } else { return "
+                    f"({arguments}); }} }}"
+                )
+            if uses_element_placeholder:
+                replacement = (
+                    "([&](auto&& __ecpp_receiver) -> decltype(auto) { return "
+                    "__ecpp_dispatch_map("
+                    f"{forwarded_receiver}, {fallback}); "
+                    f"}})({receiver})"
+                )
+            else:
+                replacement = (
+                    "([&](auto&& __ecpp_receiver) -> decltype(auto) { "
+                    "if constexpr (requires { __ecpp_additional_map("
+                    f"__ecpp_receiver, {arguments}); }}) {{ "
+                    f"return __ecpp_dispatch_map({call_args}); "
+                    "} else { return __ecpp_dispatch_map("
+                    f"{forwarded_receiver}, {fallback}); }} "
+                    f"}})({receiver})"
+                )
         else:
             replacement = (
                 "([&](auto&& __ecpp_receiver) -> decltype(auto) { return "
@@ -213,6 +252,83 @@ def translate_casts(source: str) -> str:
         if not source[opening + 1 : closing].strip():
             continue
         replacement = f"({match.group('type')})("
+        source = source[: match.start()] + replacement + source[match.end() :]
+    return source
+
+
+def find_closing_angle(source: str, opening: int, mask: list[bool]) -> int:
+    """Find the `>` paired with a template argument list's opening `<`."""
+    depth = 0
+    for index in range(opening, len(source)):
+        if not mask[index]:
+            continue
+        if source[index] == "<":
+            depth += 1
+        elif source[index] == ">":
+            depth -= 1
+            if depth == 0:
+                return index
+    raise TranslationError(f"unclosed template argument list at character {opening}")
+
+
+def translate_vector_comprehensions(source: str) -> str:
+    """Translate typed or deduced `vector name(iterable, mapper)` syntax."""
+    declaration = re.compile(
+        r"(?m)^(?P<prefix>[ \t]*(?:(?:const|constexpr|static|thread_local)"
+        r"[ \t]+)*)(?P<vector>(?:std::)?vector)\b"
+        r"(?P<template>[ \t]*<)?"
+    )
+    mask = code_mask(source)
+    replacements: list[tuple[int, int, str]] = []
+
+    for match in declaration.finditer(source):
+        if not mask[match.start()]:
+            continue
+        element_type: str | None = None
+        if match.group("template"):
+            angle_open = match.end() - 1
+            angle_close = find_closing_angle(source, angle_open, mask)
+            element_type = source[angle_open + 1 : angle_close].strip()
+            if not element_type:
+                continue
+            position = angle_close + 1
+        else:
+            position = match.end()
+        while position < len(source) and source[position] in " \t":
+            position += 1
+        name_match = re.match(r"[A-Za-z_]\w*", source[position:])
+        if not name_match:
+            continue
+        position += name_match.end()
+        while position < len(source) and source[position] in " \t":
+            position += 1
+        if position >= len(source) or source[position] != "(":
+            continue
+
+        arguments_end = find_closing_paren(source, position, mask)
+        arguments = split_top_level_commas(source[position + 1 : arguments_end])
+        if len(arguments) != 2 or not all(argument.strip() for argument in arguments):
+            continue
+        iterable, mapper = (argument.strip() for argument in arguments)
+        template_arguments = f"<{element_type}>" if element_type else ""
+        replacement = (
+            f"__ecpp_vector_comprehension{template_arguments}("
+            f"{iterable}, {mapper})"
+        )
+        replacements.append((position + 1, arguments_end, replacement))
+
+    for start, end, replacement in reversed(replacements):
+        source = source[:start] + replacement + source[end:]
+    return source
+
+
+def translate_iota_calls(source: str) -> str:
+    """Route unqualified ecpp `iota(...)` calls away from `std::iota`."""
+    call = re.compile(r"(?<![\w.:>])iota(?P<spacing>[ \t]*)\(")
+    mask = code_mask(source)
+    matches = [match for match in call.finditer(source) if mask[match.start()]]
+    for match in reversed(matches):
+        replacement = f"__ecpp_iota{match.group('spacing')}("
         source = source[: match.start()] + replacement + source[match.end() :]
     return source
 
@@ -906,6 +1022,7 @@ def original_source_comment(name: str, source: str) -> str:
         commented_lines.append(f"// {line}{suffix}")
 
     return (
+        "// https://github.com/es142857/Extended-C-Specification-for-AtCoder\n"
         f"// ----- Original Extended C++ source: {name} -----\n"
         + "\n".join(commented_lines)
         + f"\n// ----- End original Extended C++ source: {name} -----\n\n"
@@ -928,6 +1045,8 @@ def translate(preamble: Path, program: Path) -> str:
             f"(found in main.ecpp: {names})"
         )
 
+    translated_main = translate_iota_calls(translated_main)
+    translated_main = translate_vector_comprehensions(translated_main)
     implicit_main = translate_implicit_let_declarations(
         translated_main, declared_type_names(sources["preamble.ecpp"])
     )

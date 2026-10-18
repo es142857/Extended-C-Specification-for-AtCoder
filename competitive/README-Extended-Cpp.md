@@ -18,8 +18,9 @@
 runtime errors. `init` clears `copier.txt`, `in.txt`, `expected_out.txt`,
 `out.txt`, `main.ecpp`, `main.cpp`, and `generator.py`.
 
-The generated `main.cpp` starts with a commented copy of the original
-`main.ecpp`. This preserves the Extended C++ source in copied or submitted
+The generated `main.cpp` starts with a comment linking to the Extended C++
+specification, followed by a commented copy of the original `main.ecpp`.
+This preserves the language reference and source in copied or submitted
 transpilation results without affecting compilation. The generated C++ and
 its `#line` mappings follow that comment block.
 
@@ -88,6 +89,66 @@ numbers = values.map(stf(stoi))
 `map(f)` first tries `f(element)`. If that expression is not valid, it falls
 back to `f(stoi(element))`; this lets integer-taking functions operate directly
 on the strings returned by `input(count)`.
+
+Inside a `map` expression, the reserved name `th` means the current element.
+It provides an implicit-lambda shorthand:
+
+```cpp
+lis = iota(5)
+doubled = lis.map(th * 2)
+// {0, 2, 4, 6, 8}
+```
+
+This is equivalent to `lis.map([](auto&& th) { return th * 2; })`. A `th`
+written inside an explicit lambda remains that lambda's own name.
+
+When the argument is not callable, `map(expression)` is shorthand for a
+lambda that ignores the current element and evaluates `expression` once per
+element. A zero-argument lambda is called in the same way:
+
+```cpp
+x = iota(5).map(input(5).map(stoi))
+// Reads five values five times; x is vector<vector<int>>.
+
+y = iota(3).map([] { return int(input()); })
+// Equivalent to supplying an unused argument to the lambda.
+```
+
+## Vector comprehensions and `iota`
+
+A two-argument `vector<T>` declaration maps a source range into a new vector
+when its second argument is callable for an element of the source:
+
+```cpp
+vector<int> squares(iota(5), [](ll x) { return x * x; })
+// {0, 1, 4, 9, 16}
+```
+
+The element type may be omitted. In that form it is inferred from the mapping
+function's return type:
+
+```cpp
+vector squares(iota(5), [](ll x) { return x * x; })
+// vector<ll>{0, 1, 4, 9, 16}
+```
+
+The mapping result is converted to `T`. Normal two-argument constructors such
+as `vector<int> values(count, initial_value)` and iterator-pair constructors
+keep their standard C++ behavior.
+
+`iota` has the same argument forms and half-open interval behavior as Python's
+`range`:
+
+```cpp
+iota(5)          // {0, 1, 2, 3, 4}
+iota(2, 7)       // {2, 3, 4, 5, 6}
+iota(7, 2, -2)   // {7, 5, 3}
+iota(2, 7, -1)   // {}
+```
+
+The step defaults to `1`; positive and negative steps are supported. A zero
+step throws `invalid_argument`, corresponding to Python `range`'s zero-step
+error. Values use the Extended C++ `ll` integer type.
 
 ## Inferred variables
 
