@@ -147,6 +147,15 @@ product = left * right
 Either input may have a different element type. If either vector is empty,
 the result is empty.
 
+For a `pair`, `.f` and `.s` are aliases of `.first` and `.second`. They may be
+read from or assigned to:
+
+```cpp
+p = pair<int, str>{1, "a"}
+print(p.f, p.s)  // 1 a
+p.s = "b"
+```
+
 ## Vector comprehensions and `iota`
 
 A two-argument `vector<T>` declaration maps a source range into a new vector
