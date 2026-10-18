@@ -22,6 +22,7 @@ cleanup() {
 
 trap cleanup EXIT
 
+sleep 0.1
 python3 sh/copier.py copier.txt in.txt expected_out.txt
 python3 sh/ecpp.py preamble.ecpp main.ecpp main.cpp >/dev/null
 
