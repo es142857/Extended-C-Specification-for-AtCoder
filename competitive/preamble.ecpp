@@ -39,6 +39,14 @@ using pq = priority_queue<S>;
 template <typename S>
 using inv_pq = priority_queue<S, vec<S>, greater<S>>;
 
+template <typename S, typename T>
+vector<pair<S, T>> operator*(const vector<S>& a, const vector<T>& b) {
+    vector<pair<S, T>> res;
+    res.reserve(a.size() * b.size());
+    for(const S& x: a) for(const T& y: b) res.emplace_back(x, y);
+    return res;
+}
+
 using mint = modint998244353;
 const ll mod = mint::mod();
 
