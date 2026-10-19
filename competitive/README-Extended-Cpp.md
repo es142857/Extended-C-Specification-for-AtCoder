@@ -107,6 +107,18 @@ doubled = lis.map(th * 2)
 This is equivalent to `lis.map([](auto&& th) { return th * 2; })`. A `th`
 written inside an explicit lambda remains that lambda's own name.
 
+Nested implicit `map` and `filter` expressions number their current elements
+by depth: the outer element is `th`, the next element is `th2`, then `th3`,
+and so on. This lets an inner expression refer to every enclosing element:
+
+```cpp
+table = iota(2).map(iota(3).map(th * 10 + th2))
+// {{0, 1, 2}, {10, 11, 12}}
+```
+
+An explicit lambda does not consume a `th` depth; an implicit expression
+inside its body starts again at `th`.
+
 When the argument is not callable, `map(expression)` is shorthand for a
 lambda that ignores the current element and evaluates `expression` once per
 element. A zero-argument lambda is called in the same way:
