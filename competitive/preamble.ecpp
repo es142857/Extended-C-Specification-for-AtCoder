@@ -854,7 +854,7 @@ void additional set<S>.add(S x) {
 
 template <typename S>
 S additional vec<S>.sum() const {
-    return accumulate(self.begin(), self.end(), S{});
+    return std::accumulate(self.begin(), self.end(), S{});
 }
 
 template <typename S>
