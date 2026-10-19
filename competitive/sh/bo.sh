@@ -85,5 +85,8 @@ echo "======================="
 ./a.out < in.txt > out.txt
 
 if [[ -f judge.py ]]; then
-    python3 judge.py
+    if python3 judge.py; then
+        source "$ROOT/.bashrc"
+        cp
+    fi
 fi
