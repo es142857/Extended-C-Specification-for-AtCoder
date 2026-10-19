@@ -49,7 +49,7 @@ s2 = stats(f2)
 
 if len(s1) != len(s2):
     print("output amount wrong")
-    exit()
+    raise SystemExit(1)
 
 cnt_ac = 0
 cnt_wa = 0
@@ -63,3 +63,5 @@ print("Final verdict")
 if cnt_ac == 0: print("[WA] x", cnt_wa)
 elif cnt_wa == 0: print("[AC] x", cnt_ac)
 else: print("[AC] x", str(cnt_ac) + ",", "[WA] x", cnt_wa)
+
+raise SystemExit(0 if cnt_ac > 0 and cnt_wa == 0 else 1)
