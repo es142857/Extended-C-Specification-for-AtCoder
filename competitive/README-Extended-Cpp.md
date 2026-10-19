@@ -244,6 +244,19 @@ unpacked by index after evaluating the right-hand side once.
 Function calls such as `let(x)`, and occurrences inside comments or strings,
 are not rewritten.
 
+## Repeat loops
+
+`rep(count)` is shorthand for a repeat loop whose index is unused. Each use
+receives a different hidden variable, so nested loops never shadow each other:
+
+```cpp
+rep(2) rep(3) print("six times")
+// -> rep(__ecpp_rep1, 2) rep(__ecpp_rep2, 3) ...
+```
+
+The normal two-argument form `rep(index, count)` is unchanged when the index
+is needed.
+
 ## Automatic semicolons
 
 Statements in `main.ecpp` receive a semicolon at the newline, so semicolons can
