@@ -147,6 +147,25 @@ def receiver_start(source: str, dot: int, mask: list[bool]) -> int:
     return start
 
 
+def implicit_placeholder_depth(source, target, candidates, mask) -> int:
+    """Return the implicit `th` depth for a nested map/filter call."""
+    depth = 1
+    for parent in candidates:
+        if parent.start() >= target.start():
+            continue
+        if parent.group("name") not in {"map", "filter"}:
+            continue
+        opening = parent.end() - 1
+        closing = find_closing_paren(source, opening, mask)
+        if not opening < target.start() < closing:
+            continue
+        arguments = source[opening + 1 : closing].strip()
+        if arguments.lstrip().startswith("["):
+            continue
+        depth += 1
+    return depth
+
+
 def translate_calls(source: str, names: set[str]) -> str:
     if not names:
         return source
@@ -180,10 +199,17 @@ def translate_calls(source: str, names: set[str]) -> str:
         if name in {"map", "filter"} and arguments:
             argument_mask = code_mask(arguments)
             argument_is_lambda = arguments.lstrip().startswith("[")
+            placeholder_depth = implicit_placeholder_depth(
+                source, match, candidates, mask
+            )
+            placeholder_name = (
+                "th" if placeholder_depth == 1 else f"th{placeholder_depth}"
+            )
             uses_element_placeholder = not argument_is_lambda and any(
                 argument_mask[placeholder.start()]
                 for placeholder in re.finditer(
-                    r"(?<![\w.:>])th\b", arguments
+                    rf"(?<![\w.:>]){re.escape(placeholder_name)}\b",
+                    arguments,
                 )
             )
             zero_argument_lambda = bool(
@@ -195,7 +221,8 @@ def translate_calls(source: str, names: set[str]) -> str:
             if uses_element_placeholder:
                 fallback = (
                     "[&](auto&& __ecpp_map_value) -> decltype(auto) { "
-                    "auto&& th = std::forward<decltype(__ecpp_map_value)>("
+                    f"auto&& {placeholder_name} = "
+                    "std::forward<decltype(__ecpp_map_value)>("
                     "__ecpp_map_value); return "
                     f"({arguments}); }}"
                 )
