@@ -7,6 +7,7 @@
 3. `main.cpp` -> `a.out`
 4. `a.out < in.txt` -> `out.txt`
 5. `judge.py` -> the original `[AC]` / `[WA]` result UI
+6. on a full `[AC]`, `cp` -> copy `main.cpp` to the clipboard
 
 ## Commands
 
