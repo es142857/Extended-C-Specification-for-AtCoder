@@ -42,6 +42,11 @@ vector<int> a{1, 2, 3};
 print(a.sum());
 ```
 
+`vector<S>.sum()` returns `S` and uses `S{}` as the accumulator's initial
+zero value. This preserves the element type for `int`, `ll`, `ld`, and other
+addable types; a literal `0` would instead force `std::accumulate` to use an
+`int` accumulator.
+
 Inside an extension, `self` is the receiving object. Add `const` after the
 parameter list for read-only extensions. The generated `main.cpp` is ordinary
 C++ and should not be edited directly.
