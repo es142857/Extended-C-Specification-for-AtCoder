@@ -473,6 +473,65 @@ def translate_chained_assignments(source: str) -> str:
     return "".join(output)
 
 
+def split_top_level_statements(source: str) -> str:
+    """Put same-line statements on separate lines before declaration inference."""
+    mask = code_mask(source)
+    output: list[str] = []
+    offset = 0
+
+    for line in source.splitlines(keepends=True):
+        if line.endswith("\r\n"):
+            body, newline = line[:-2], "\r\n"
+        elif line.endswith(("\n", "\r")):
+            body, newline = line[:-1], line[-1]
+        else:
+            body, newline = line, ""
+
+        round_depth = square_depth = brace_depth = 0
+        separators: list[int] = []
+        for index, character in enumerate(body):
+            if not mask[offset + index]:
+                continue
+            if character == "(":
+                round_depth += 1
+            elif character == ")" and round_depth:
+                round_depth -= 1
+            elif character == "[":
+                square_depth += 1
+            elif character == "]" and square_depth:
+                square_depth -= 1
+            elif character == "{":
+                brace_depth += 1
+            elif character == "}" and brace_depth:
+                brace_depth -= 1
+            elif (
+                character == ";"
+                and round_depth == square_depth == brace_depth == 0
+            ):
+                separators.append(index)
+
+        if not separators or (
+            len(separators) == 1 and separators[-1] == len(body) - 1
+        ):
+            output.append(line)
+            offset += len(line)
+            continue
+
+        indent = re.match(r"[ \t]*", body).group()
+        start = 0
+        for separator in separators:
+            statement = body[start : separator + 1].strip()
+            if statement:
+                output.append(indent + statement + (newline or "\n"))
+            start = separator + 1
+        remainder = body[start:].strip()
+        if remainder:
+            output.append(indent + remainder + newline)
+        offset += len(line)
+
+    return "".join(output)
+
+
 def find_closing_angle(source: str, opening: int, mask: list[bool]) -> int:
     """Find the `>` paired with a template argument list's opening `<`."""
     depth = 0
@@ -684,7 +743,7 @@ def split_top_level_commas(text: str) -> list[str]:
 
 def binding_names(code: str) -> list[str]:
     """Return names introduced by a leading `let` or `auto`."""
-    match = re.match(r"^[ \t]*(?:let|auto)[ \t]+\[([^\]\n]+)\]", code)
+    match = re.match(r"^[ \t]*(?:let|auto)[ \t]*\[([^\]\n]+)\]", code)
     if match:
         names = [name.strip() for name in match.group(1).split(",")]
         if all(re.fullmatch(r"[A-Za-z_]\w*", name) for name in names):
@@ -839,6 +898,12 @@ def translate_implicit_let_declarations(
             code,
         ):
             block_names.add(loop_match.group(1))
+        for loop_match in re.finditer(
+            r"\bfor[ \t]*\([ \t]*(?:let|auto)[ \t]*"
+            r"\[([^\]\n]+)\][ \t]*:",
+            code,
+        ):
+            block_names.update(re.findall(r"[A-Za-z_]\w*", loop_match.group(1)))
 
         opening = code.find("(")
         if opening >= 0 and "{" in code[opening:]:
@@ -878,7 +943,7 @@ def translate_let_declarations(source: str) -> str:
     source = translate_bracket_let_declarations(source)
     source = translate_multiple_let_declarations(source)
     declaration = re.compile(
-        r"\blet(?=[ \t]+(?:[A-Za-z_]\w*|\[[^\]\n]+\])"
+        r"\blet(?=(?:[ \t]+[A-Za-z_]\w*|[ \t]*\[[^\]\n]+\])"
         r"[ \t]*(?:=|:|\{|\())"
     )
     mask = code_mask(source)
@@ -902,7 +967,7 @@ def translate_bracket_let_declarations(source: str) -> str:
     """Allow bracket bindings to unpack both tuple-like and indexable values."""
     code_comments = comment_mask(source)
     declaration = re.compile(
-        r"^(?P<indent>[ \t]*)let[ \t]+\["
+        r"^(?P<indent>[ \t]*)let[ \t]*\["
         r"(?P<names>[A-Za-z_]\w*(?:[ \t]*,[ \t]*[A-Za-z_]\w*)*)"
         r"\][ \t]*=[ \t]*(?P<value>.+?)$"
     )
@@ -1320,6 +1385,7 @@ def translate(preamble: Path, program: Path) -> str:
             f"(found in main.ecpp: {names})"
         )
 
+    translated_main = split_top_level_statements(translated_main)
     translated_main = translate_walrus_expressions(translated_main)
     translated_main = translate_chained_assignments(translated_main)
     translated_main = translate_pair_member_aliases(translated_main)
