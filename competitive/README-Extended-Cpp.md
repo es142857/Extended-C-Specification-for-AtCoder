@@ -291,6 +291,7 @@ closing parenthesis after `int(input())` is significant.
 let n = int(input());       // auto n = (int)(input());
 let total = values.sum();   // auto total = ...;
 for (let value : values) {} // for (auto value : values) {}
+for (value : values) {}     // `let` may be omitted
 for (let[value, index] : pairs) {} // whitespace after let is optional
 for ([value, index] : pairs) {}    // `let` may also be omitted
 let x, y, z = int(input()), int(input()), int(input());
