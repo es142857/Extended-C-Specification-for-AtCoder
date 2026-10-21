@@ -194,6 +194,20 @@ joined = left + right
 // {1, 2, 3, 4}
 ```
 
+## Zipping vectors
+
+`zip(a, b)` pairs elements at the same index and returns a
+`vector<pair<S, T>>`. The vectors must have the same length:
+
+```cpp
+numbers = vector<int>{1, 2}
+names = vector<str>{"one", "two"}
+pairs = zip(numbers, names)
+// {{1, "one"}, {2, "two"}}
+```
+
+Different element types are supported. A length mismatch fails an assertion.
+
 ## Cartesian products
 
 Multiplying two vectors returns their Cartesian product as a
