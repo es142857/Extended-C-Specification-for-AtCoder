@@ -172,6 +172,19 @@ sort(values, greater<int>())
 Iterator forms such as `sort(a.begin(), a.end())` and existing `sort(all(a))`
 calls continue to work.
 
+## Concatenating vectors
+
+Adding two vectors with the same element type returns a new vector containing
+the left vector followed by the right vector, like Python list addition. The
+input vectors are not changed:
+
+```cpp
+left = vector<int>{1, 2}
+right = vector<int>{3, 4}
+joined = left + right
+// {1, 2, 3, 4}
+```
+
 ## Cartesian products
 
 Multiplying two vectors returns their Cartesian product as a
