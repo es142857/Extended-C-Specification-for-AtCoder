@@ -314,6 +314,95 @@ def translate_pair_member_aliases(source: str) -> str:
     return source
 
 
+def walrus_rhs_end(source: str, start: int, mask: list[bool]) -> int:
+    """Find the delimiter ending a walrus right-hand side on one line."""
+    round_depth = square_depth = brace_depth = angle_depth = 0
+    for index in range(start, len(source)):
+        if not mask[index]:
+            continue
+        character = source[index]
+        if character == "(":
+            round_depth += 1
+        elif character == ")":
+            if round_depth == 0:
+                return index
+            round_depth -= 1
+        elif character == "[":
+            square_depth += 1
+        elif character == "]":
+            if square_depth == 0:
+                return index
+            square_depth -= 1
+        elif character == "{":
+            brace_depth += 1
+        elif character == "}":
+            if brace_depth == 0:
+                return index
+            brace_depth -= 1
+        elif character == "<":
+            angle_depth += 1
+        elif character == ">" and angle_depth:
+            angle_depth -= 1
+        elif (
+            character in ",;"
+            and round_depth == square_depth == brace_depth == angle_depth == 0
+        ):
+            return index
+    return len(source)
+
+
+def translate_walrus_expressions(source: str) -> str:
+    """Hoist `name := expression` while leaving its assigned value in place."""
+    walrus = re.compile(r"\b(?P<name>[A-Za-z_]\w*)[ \t]*:=[ \t]*")
+    output: list[str] = []
+
+    for line in source.splitlines(keepends=True):
+        if line.endswith("\r\n"):
+            body, newline = line[:-2], "\r\n"
+        elif line.endswith(("\n", "\r")):
+            body, newline = line[:-1], line[-1]
+        else:
+            body, newline = line, ""
+
+        assignments: list[tuple[str, str]] = []
+        while True:
+            mask = code_mask(body)
+            matches = [match for match in walrus.finditer(body) if mask[match.start()]]
+            if not matches:
+                break
+
+            candidates: list[tuple[re.Match[str], int]] = []
+            for match in matches:
+                end = walrus_rhs_end(body, match.end(), mask)
+                nested = any(
+                    match.end() <= other.start() < end
+                    for other in matches
+                    if other is not match
+                )
+                if not nested:
+                    candidates.append((match, end))
+            if not candidates:
+                raise TranslationError("could not determine walrus expression nesting")
+
+            match, end = candidates[0]
+            expression = body[match.end() : end].strip()
+            if not expression:
+                raise TranslationError(
+                    f"missing expression after walrus assignment to {match.group('name')}"
+                )
+            name = match.group("name")
+            assignments.append((name, expression))
+            body = body[: match.start()] + name + body[end:]
+
+        if assignments:
+            indent = re.match(r"[ \t]*", body).group()
+            for name, expression in assignments:
+                output.append(f"{indent}{name} = {expression}{newline or chr(10)}")
+        output.append(body + newline)
+
+    return "".join(output)
+
+
 def find_closing_angle(source: str, opening: int, mask: list[bool]) -> int:
     """Find the `>` paired with a template argument list's opening `<`."""
     depth = 0
@@ -1161,6 +1250,7 @@ def translate(preamble: Path, program: Path) -> str:
             f"(found in main.ecpp: {names})"
         )
 
+    translated_main = translate_walrus_expressions(translated_main)
     translated_main = translate_pair_member_aliases(translated_main)
     translated_main = translate_rep_shorthand(translated_main)
     translated_main = translate_sort_calls(translated_main)
