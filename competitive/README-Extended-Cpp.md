@@ -266,7 +266,7 @@ iota(2, 7, -1)   // {}
 
 The step defaults to `1`; positive and negative steps are supported. A zero
 step throws `invalid_argument`, corresponding to Python `range`'s zero-step
-error. Values use the Extended C++ `ll` integer type.
+error. Every overload returns `vector<int>`.
 
 ## Inferred variables
 
