@@ -532,20 +532,28 @@ def split_top_level_statements(source: str) -> str:
     return "".join(output)
 
 
-def translate_inferred_for_bindings(source: str) -> str:
-    """Infer `auto` for a structured binding in `for([a, b] : range)`."""
+def translate_inferred_for_loops(source: str) -> str:
+    """Infer `auto` for omitted range-for declarations."""
     binding = re.compile(
         r"\bfor[ \t]*\([ \t]*(?P<bracket>\["
         r"[A-Za-z_]\w*(?:[ \t]*,[ \t]*[A-Za-z_]\w*)*\])"
         r"[ \t]*:"
     )
+    variable = re.compile(
+        r"\bfor[ \t]*\([ \t]*(?P<name>[A-Za-z_]\w*)[ \t]*:"
+    )
     mask = code_mask(source)
-    insertions = [
+    insertions = {
         match.start("bracket")
         for match in binding.finditer(source)
         if mask[match.start()]
-    ]
-    for position in reversed(insertions):
+    }
+    insertions.update(
+        match.start("name")
+        for match in variable.finditer(source)
+        if mask[match.start()]
+    )
+    for position in sorted(insertions, reverse=True):
         source = source[:position] + "auto " + source[position:]
     return source
 
@@ -907,7 +915,7 @@ def translate_implicit_let_declarations(
         scopes[-1].update(explicit_declaration_names(code, type_names))
         block_names: set[str] = set()
         for loop_match in re.finditer(
-            r"\b(?:rep|rrep|forl)[ \t]*\([ \t]*([A-Za-z_]\w*)[ \t]*,",
+            r"\b(?:rep|rrep)[ \t]*\([ \t]*([A-Za-z_]\w*)[ \t]*,",
             code,
         ):
             block_names.add(loop_match.group(1))
@@ -1404,7 +1412,7 @@ def translate(preamble: Path, program: Path) -> str:
         )
 
     translated_main = split_top_level_statements(translated_main)
-    translated_main = translate_inferred_for_bindings(translated_main)
+    translated_main = translate_inferred_for_loops(translated_main)
     translated_main = translate_walrus_expressions(translated_main)
     translated_main = translate_chained_assignments(translated_main)
     translated_main = translate_pair_member_aliases(translated_main)
