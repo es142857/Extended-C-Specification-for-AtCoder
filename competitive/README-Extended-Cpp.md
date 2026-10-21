@@ -308,6 +308,18 @@ value = value + 1                // assignment; value already exists
 [a, b] = input(2).map(stoi)      // binds elements [0] and [1]
 ```
 
+Chained assignments introduce undeclared names from right to left:
+
+```cpp
+res = st = vec(n + 1, 0)
+// auto st = vec(n + 1, 0);
+// auto res = st;
+```
+
+Consequently, vectors and other value types are copied normally: changing
+`res` afterward does not change `st`. Names that were already declared remain
+ordinary assignments rather than being redeclared.
+
 For a bracketed list, every name must be new in the current scope. Explicit
 C++ declarations, `let` declarations, structured bindings, function or lambda
 parameters, and loop variables are tracked as existing names. Tuple-like
