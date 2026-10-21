@@ -159,6 +159,23 @@ large = values.filter(th >= 4)
 // {4, 5, 6}
 ```
 
+## Vector slices
+
+Python-style slicing returns a new vector without changing the source vector.
+Start, stop, and step follow Python's half-open slice rules, including omitted
+bounds, negative indices, and negative steps:
+
+```cpp
+values = vector<int>{0, 1, 2, 3, 4, 5}
+values[1:4]    // {1, 2, 3}
+values[::-1]   // {5, 4, 3, 2, 1, 0}
+values[1::2]   // {1, 3, 5}
+values[-4:-1] // {2, 3, 4}
+```
+
+Out-of-range bounds are clipped in the same way as Python. A zero step throws
+`invalid_argument`. Ordinary indexing such as `values[i]` is unchanged.
+
 ## Sorting vectors
 
 `sorted(a)` returns an ascending sorted copy of a vector, leaving `a`
