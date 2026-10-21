@@ -228,6 +228,12 @@ auto time() { return chrono::high_resolution_clock::now(); }
 
 template <typename T> int len(const T& x) { return (int)(x.size()); }
 
+template <typename S>
+vector<S> sorted(vector<S> a) {
+    sort(a.begin(), a.end());
+    return a;
+}
+
 #define Seg segtree<S, op, e>
 #define LazySeg lazy_segtree<S, op, e, F, mapping, composition, id>
 
