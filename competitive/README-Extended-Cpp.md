@@ -256,6 +256,21 @@ error. Values use the Extended C++ `ll` integer type.
 
 ## Inferred variables
 
+The walrus operator `name := expression` assigns the expression to `name` and
+leaves `name` as the value of that parenthesized expression. A new name is
+inferred like `let`, remains available in the current scope, and nested walrus
+expressions are evaluated from the inside out:
+
+```cpp
+b = sorted(vec{0} + (a := input(n := int(input())).map(stoi)))
+// n is the input count, a is the input vector, and b is its sorted copy
+// with a leading zero. All three names remain available afterward.
+```
+
+As in Python, parentheses determine which operations belong to the assigned
+expression. In particular, `.map(stoi)` above is applied to `input(n)`, so the
+closing parenthesis after `int(input())` is significant.
+
 `let` is translated to `auto` only when it forms a variable declaration:
 
 ```cpp
