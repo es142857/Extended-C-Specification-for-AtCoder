@@ -152,6 +152,55 @@ vec<int> __ecpp_iota(ll start, ll stop) {
     return __ecpp_iota(start, stop, 1);
 }
 
+template <typename S>
+vector<S> __ecpp_slice(
+    const vector<S>& values,
+    optional<ll> start_bound,
+    optional<ll> stop_bound,
+    ll step
+) {
+    if (step == 0) throw invalid_argument("slice step must not be zero");
+    ll n = (ll)values.size();
+    ll start, stop;
+
+    if (step > 0) {
+        start = start_bound.value_or(0);
+        if (start_bound && start < 0) start += n;
+        start = clamp(start, 0LL, n);
+
+        stop = stop_bound.value_or(n);
+        if (stop_bound && stop < 0) stop += n;
+        stop = clamp(stop, 0LL, n);
+    } else {
+        if (start_bound) {
+            start = *start_bound;
+            if (start < 0) start += n;
+            start = clamp(start, -1LL, n - 1);
+        } else {
+            start = n - 1;
+        }
+
+        if (stop_bound) {
+            stop = *stop_bound;
+            if (stop < 0) stop += n;
+            stop = clamp(stop, -1LL, n - 1);
+        } else {
+            stop = -1;
+        }
+    }
+
+    vector<S> result;
+    ll index = start;
+    while ((step > 0 && index < stop) || (step < 0 && index > stop)) {
+        result.push_back(values[(size_t)index]);
+        __int128 next = (__int128)index + step;
+        if (next < (numeric_limits<ll>::min)() ||
+            next > (numeric_limits<ll>::max)()) break;
+        index = (ll)next;
+    }
+    return result;
+}
+
 template <typename T, typename Source, typename Mapper>
 vector<T> __ecpp_vector_comprehension(Source&& source, Mapper&& mapper) {
     if constexpr (ranges::input_range<Source>) {
