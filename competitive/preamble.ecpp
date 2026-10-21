@@ -47,6 +47,13 @@ vector<pair<S, T>> operator*(const vector<S>& a, const vector<T>& b) {
     return res;
 }
 
+template <typename S>
+vector<S> operator+(vector<S> a, vector<S> b) {
+    a.reserve(a.size() + b.size());
+    a.insert(a.end(), b.begin(), b.end());
+    return a;
+}
+
 using mint = modint998244353;
 const ll mod = mint::mod();
 
