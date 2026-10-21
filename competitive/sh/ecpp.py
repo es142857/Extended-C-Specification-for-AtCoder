@@ -314,6 +314,176 @@ def translate_pair_member_aliases(source: str) -> str:
     return source
 
 
+def find_closing_bracket(source: str, opening: int, mask: list[bool]) -> int:
+    depth = 0
+    for index in range(opening, len(source)):
+        if not mask[index]:
+            continue
+        if source[index] == "[":
+            depth += 1
+        elif source[index] == "]":
+            depth -= 1
+            if depth == 0:
+                return index
+    raise TranslationError(f"unclosed subscript at character {opening}")
+
+
+def slice_receiver_start(source: str, opening: int, mask: list[bool]) -> int:
+    """Find the expression immediately before a slice subscript."""
+    index = opening - 1
+    while index >= 0 and source[index] in " \t":
+        index -= 1
+    end = index
+    round_depth = square_depth = brace_depth = angle_depth = 0
+    stops = set(";=,+-*/%!&|^?\n")
+
+    while index >= 0:
+        if not mask[index]:
+            break
+        character = source[index]
+        if character == ")":
+            round_depth += 1
+        elif character == "(":
+            if round_depth == 0:
+                break
+            round_depth -= 1
+        elif character == "]":
+            square_depth += 1
+        elif character == "[":
+            if square_depth == 0:
+                break
+            square_depth -= 1
+        elif character == "}":
+            brace_depth += 1
+        elif character == "{":
+            if brace_depth == 0:
+                break
+            brace_depth -= 1
+        elif character == ">":
+            angle_depth += 1
+        elif character == "<":
+            if angle_depth == 0:
+                break
+            angle_depth -= 1
+        elif (
+            round_depth == square_depth == brace_depth == angle_depth == 0
+            and (character.isspace() or character in stops)
+        ):
+            break
+        index -= 1
+
+    start = index + 1
+    if start > end:
+        raise TranslationError(f"missing slice receiver before character {opening}")
+    return start
+
+
+def slice_colons(text: str) -> list[int]:
+    """Return top-level slice colons, excluding `?:` and qualified names."""
+    mask = code_mask(text)
+    scope_colons: set[int] = set()
+    for match in re.finditer(r"::", text):
+        if not mask[match.start()] or not mask[match.start() + 1]:
+            continue
+        before = match.start() - 1
+        while before >= 0 and text[before] in " \t":
+            before -= 1
+        after = match.end()
+        while after < len(text) and text[after] in " \t":
+            after += 1
+        prefix = re.search(r"([A-Za-z_]\w*)[ \t]*$", text[: match.start()])
+        suffix = re.match(r"([A-Za-z_]\w*)", text[after:])
+        suffix_end = after + (suffix.end() if suffix else 0)
+        while suffix_end < len(text) and text[suffix_end] in " \t":
+            suffix_end += 1
+        is_qualified_name = bool(
+            prefix
+            and suffix
+            and (
+                prefix.group(1) in {"std", "atcoder"}
+                or suffix_end < len(text) and text[suffix_end] == "("
+            )
+        ) or (before >= 0 and text[before] == ">" and suffix is not None)
+        if is_qualified_name:
+            scope_colons.update({match.start(), match.start() + 1})
+
+    round_depth = square_depth = brace_depth = 0
+    ternary_depth = 0
+    colons: list[int] = []
+    for index, character in enumerate(text):
+        if not mask[index]:
+            continue
+        if character == "(":
+            round_depth += 1
+        elif character == ")" and round_depth:
+            round_depth -= 1
+        elif character == "[":
+            square_depth += 1
+        elif character == "]" and square_depth:
+            square_depth -= 1
+        elif character == "{":
+            brace_depth += 1
+        elif character == "}" and brace_depth:
+            brace_depth -= 1
+        elif round_depth == square_depth == brace_depth == 0:
+            if character == "?":
+                ternary_depth += 1
+            elif character == ":" and index not in scope_colons:
+                if ternary_depth:
+                    ternary_depth -= 1
+                else:
+                    colons.append(index)
+    return colons
+
+
+def translate_slice_expressions(source: str) -> str:
+    """Translate Python-style vector slices into `__ecpp_slice` calls."""
+    while True:
+        mask = code_mask(source)
+        candidate: tuple[int, int, list[int]] | None = None
+        for opening, character in enumerate(source):
+            if character != "[" or not mask[opening]:
+                continue
+            closing = find_closing_bracket(source, opening, mask)
+            content = source[opening + 1 : closing]
+            colons = slice_colons(content)
+            if colons:
+                candidate = (opening, closing, colons)
+                break
+        if candidate is None:
+            return source
+
+        opening, closing, colons = candidate
+        if len(colons) > 2:
+            raise TranslationError(
+                f"slice at character {opening} has more than two colons"
+            )
+        content = source[opening + 1 : closing]
+        boundaries = [-1, *colons, len(content)]
+        parts = [
+            content[boundaries[index] + 1 : boundaries[index + 1]].strip()
+            for index in range(len(boundaries) - 1)
+        ]
+        if len(parts) == 2:
+            parts.append("")
+        start_expression, stop_expression, step_expression = parts
+        start = (
+            "std::nullopt"
+            if not start_expression
+            else f"std::optional<ll>{{(ll)({start_expression})}}"
+        )
+        stop = (
+            "std::nullopt"
+            if not stop_expression
+            else f"std::optional<ll>{{(ll)({stop_expression})}}"
+        )
+        step = "1" if not step_expression else f"(ll)({step_expression})"
+        receiver_start = slice_receiver_start(source, opening, mask)
+        receiver = source[receiver_start:opening].strip()
+        replacement = f"__ecpp_slice({receiver}, {start}, {stop}, {step})"
+        source = source[:receiver_start] + replacement + source[closing + 1 :]
+
+
 def walrus_rhs_end(source: str, start: int, mask: list[bool]) -> int:
     """Find the delimiter ending a walrus right-hand side on one line."""
     round_depth = square_depth = brace_depth = angle_depth = 0
@@ -1415,6 +1585,7 @@ def translate(preamble: Path, program: Path) -> str:
     translated_main = translate_inferred_for_loops(translated_main)
     translated_main = translate_walrus_expressions(translated_main)
     translated_main = translate_chained_assignments(translated_main)
+    translated_main = translate_slice_expressions(translated_main)
     translated_main = translate_pair_member_aliases(translated_main)
     translated_main = translate_rep_shorthand(translated_main)
     translated_main = translate_sort_calls(translated_main)
