@@ -340,6 +340,14 @@ Consequently, vectors and other value types are copied normally: changing
 `res` afterward does not change `st`. Names that were already declared remain
 ordinary assignments rather than being redeclared.
 
+A following comma expression remains outside the chained assignment, matching
+C++ operator precedence:
+
+```cpp
+r = c = n, flags[0] = 0
+// auto c = n; auto r = c; flags[0] = 0;
+```
+
 For a bracketed list, every name must be new in the current scope. Explicit
 C++ declarations, `let` declarations, structured bindings, function or lambda
 parameters, and loop variables are tracked as existing names. Tuple-like
