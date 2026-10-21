@@ -403,6 +403,76 @@ def translate_walrus_expressions(source: str) -> str:
     return "".join(output)
 
 
+def translate_chained_assignments(source: str) -> str:
+    """Expand leading `a = b = value` assignments from right to left."""
+    comments = comment_mask(source)
+    chain = re.compile(
+        r"^(?P<indent>[ \t]*)"
+        r"(?P<assignments>(?:[A-Za-z_]\w*[ \t]*=(?!=)[ \t]*){2,})"
+        r"(?P<value>.+?)$"
+    )
+    output: list[str] = []
+    offset = 0
+
+    for line in source.splitlines(keepends=True):
+        if line.endswith("\r\n"):
+            body, newline = line[:-2], "\r\n"
+        elif line.endswith(("\n", "\r")):
+            body, newline = line[:-1], line[-1]
+        else:
+            body, newline = line, ""
+
+        comment_at = len(body)
+        for index in range(len(body) - 1):
+            if body[index : index + 2] == "//" and comments[offset + index]:
+                comment_at = index
+                break
+        statement = body[:comment_at]
+        comment = body[comment_at:]
+        trailing = statement[len(statement.rstrip()) :]
+        statement = statement.rstrip()
+        explicit_semicolon = statement.endswith(";")
+        if explicit_semicolon:
+            statement = statement[:-1].rstrip()
+
+        statement_mask = code_mask(statement)
+        masked_statement = "".join(
+            character if statement_mask[index] else " "
+            for index, character in enumerate(statement)
+        )
+        match = chain.match(masked_statement)
+        if not match:
+            output.append(line)
+            offset += len(line)
+            continue
+
+        names = re.findall(
+            r"([A-Za-z_]\w*)[ \t]*=(?!=)",
+            statement[match.start("assignments") : match.end("assignments")],
+        )
+        value = statement[match.start("value") : match.end("value")].strip()
+        if len(names) < 2 or not value:
+            output.append(line)
+            offset += len(line)
+            continue
+
+        indent = match.group("indent")
+        generated: list[str] = [f"{indent}{names[-1]} = {value}"]
+        for index in range(len(names) - 2, -1, -1):
+            generated.append(f"{indent}{names[index]} = {names[index + 1]}")
+
+        for generated_index, assignment in enumerate(generated):
+            is_last = generated_index == len(generated) - 1
+            suffix = ";"
+            if is_last:
+                output.append(assignment + suffix + trailing + comment + newline)
+            else:
+                output.append(assignment + suffix + (newline or "\n"))
+        offset += len(line)
+
+    return "".join(output)
+
+
 def find_closing_angle(source: str, opening: int, mask: list[bool]) -> int:
     """Find the `>` paired with a template argument list's opening `<`."""
     depth = 0
@@ -1251,6 +1321,7 @@ def translate(preamble: Path, program: Path) -> str:
         )
 
     translated_main = translate_walrus_expressions(translated_main)
+    translated_main = translate_chained_assignments(translated_main)
     translated_main = translate_pair_member_aliases(translated_main)
     translated_main = translate_rep_shorthand(translated_main)
     translated_main = translate_sort_calls(translated_main)
