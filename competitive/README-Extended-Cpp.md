@@ -150,6 +150,28 @@ large = values.filter(th >= 4)
 // {4, 5, 6}
 ```
 
+## Sorting vectors
+
+`sorted(a)` returns an ascending sorted copy of a vector, leaving `a`
+unchanged:
+
+```cpp
+values = vector<int>{3, 1, 2}
+ordered = sorted(values)  // {1, 2, 3}
+// values is still {3, 1, 2}.
+```
+
+`sort(a)` sorts a vector in place. A comparator can be supplied as the second
+argument with `sort(a, f)`:
+
+```cpp
+sort(values)
+sort(values, greater<int>())
+```
+
+Iterator forms such as `sort(a.begin(), a.end())` and existing `sort(all(a))`
+calls continue to work.
+
 ## Cartesian products
 
 Multiplying two vectors returns their Cartesian product as a
