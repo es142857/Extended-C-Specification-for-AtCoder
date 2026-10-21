@@ -119,23 +119,23 @@ vec<str> input(int count) {
     return values;
 }
 
-vec<ll> __ecpp_iota(ll start, ll stop, ll step) {
+vec<int> __ecpp_iota(ll start, ll stop, ll step) {
     if (step == 0) {
         throw invalid_argument("iota() arg 3 must not be zero");
     }
 
-    vec<ll> values;
+    vec<int> values;
     ll value = start;
     if (step > 0) {
         while (value < stop) {
-            values.push_back(value);
+            values.push_back((int)value);
             __int128 next = (__int128)value + step;
             if (next > (numeric_limits<ll>::max)()) break;
             value = (ll)next;
         }
     } else {
         while (value > stop) {
-            values.push_back(value);
+            values.push_back((int)value);
             __int128 next = (__int128)value + step;
             if (next < (numeric_limits<ll>::min)()) break;
             value = (ll)next;
@@ -144,11 +144,11 @@ vec<ll> __ecpp_iota(ll start, ll stop, ll step) {
     return values;
 }
 
-vec<ll> __ecpp_iota(ll stop) {
+vec<int> __ecpp_iota(ll stop) {
     return __ecpp_iota(0, stop, 1);
 }
 
-vec<ll> __ecpp_iota(ll start, ll stop) {
+vec<int> __ecpp_iota(ll start, ll stop) {
     return __ecpp_iota(start, stop, 1);
 }
 
