@@ -92,9 +92,17 @@ values = input(3)
 numbers = values.map(stf(stoi))
 ```
 
-`map(f)` first tries `f(element)`. If that expression is not valid, it falls
-back to `f(stoi(element))`; this lets integer-taking functions operate directly
-on the strings returned by `input(count)`.
+When a `map` argument is a single identifier such as a function or callable
+variable named `f`, it is shorthand for `f(th)`:
+
+```cpp
+twice = [](int x) { return x * 2; }
+doubled = iota(5).map(twice)
+// Equivalent to iota(5).map(twice(th)).
+```
+
+This also lets overloaded function names such as `stoi` be written directly
+when they accept the vector's element type.
 
 Inside a `map` expression, the reserved name `th` means the current element.
 It provides an implicit-lambda shorthand:
@@ -122,7 +130,8 @@ inside its body starts again at `th`.
 
 When the argument is not callable, `map(expression)` is shorthand for a
 lambda that ignores the current element and evaluates `expression` once per
-element. A zero-argument lambda is called in the same way:
+element. This constant-expression behavior applies to expressions rather than
+a single identifier. A zero-argument lambda is called in the same way:
 
 ```cpp
 x = iota(5).map(input(5).map(stoi))
