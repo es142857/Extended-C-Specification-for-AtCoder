@@ -205,6 +205,14 @@ def translate_calls(source: str, names: set[str]) -> str:
             placeholder_name = (
                 "th" if placeholder_depth == 1 else f"th{placeholder_depth}"
             )
+            bare_map_function = (
+                name == "map"
+                and re.fullmatch(r"[A-Za-z_]\w*", arguments) is not None
+                and re.fullmatch(r"th\d*", arguments) is None
+            )
+            if bare_map_function:
+                arguments = f"{arguments}({placeholder_name})"
+                argument_mask = code_mask(arguments)
             uses_element_placeholder = not argument_is_lambda and any(
                 argument_mask[placeholder.start()]
                 for placeholder in re.finditer(
