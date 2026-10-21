@@ -620,7 +620,41 @@ def translate_chained_assignments(source: str) -> str:
             r"([A-Za-z_]\w*)[ \t]*=(?!=)",
             statement[match.start("assignments") : match.end("assignments")],
         )
-        value = statement[match.start("value") : match.end("value")].strip()
+        value_start = match.start("value")
+        round_depth = square_depth = brace_depth = angle_depth = 0
+        comma_at: int | None = None
+        for index in range(value_start, len(statement)):
+            if not statement_mask[index]:
+                continue
+            character = statement[index]
+            if character == "(":
+                round_depth += 1
+            elif character == ")" and round_depth:
+                round_depth -= 1
+            elif character == "[":
+                square_depth += 1
+            elif character == "]" and square_depth:
+                square_depth -= 1
+            elif character == "{":
+                brace_depth += 1
+            elif character == "}" and brace_depth:
+                brace_depth -= 1
+            elif character == "<":
+                angle_depth += 1
+            elif character == ">" and angle_depth:
+                angle_depth -= 1
+            elif (
+                character == ","
+                and round_depth == square_depth == brace_depth == angle_depth == 0
+            ):
+                comma_at = index
+                break
+
+        value_end = comma_at if comma_at is not None else match.end("value")
+        value = statement[value_start:value_end].strip()
+        comma_tail = (
+            statement[comma_at + 1 :].strip() if comma_at is not None else ""
+        )
         if len(names) < 2 or not value:
             output.append(line)
             offset += len(line)
@@ -630,6 +664,8 @@ def translate_chained_assignments(source: str) -> str:
         generated: list[str] = [f"{indent}{names[-1]} = {value}"]
         for index in range(len(names) - 2, -1, -1):
             generated.append(f"{indent}{names[index]} = {names[index + 1]}")
+        if comma_tail:
+            generated.append(f"{indent}{comma_tail}")
 
         for generated_index, assignment in enumerate(generated):
             is_last = generated_index == len(generated) - 1
