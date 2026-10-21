@@ -54,6 +54,15 @@ vector<S> operator+(vector<S> a, vector<S> b) {
     return a;
 }
 
+template <typename S, typename T>
+vector<pair<S, T>> zip(vector<S> a, vector<T> b) {
+    assert(a.size() == b.size());
+    vector<pair<S, T>> res;
+    res.reserve(a.size());
+    for(size_t i = 0; i < a.size(); i++) res.emplace_back(a[i], b[i]);
+    return res;
+}
+
 using mint = modint998244353;
 const ll mod = mint::mod();
 
