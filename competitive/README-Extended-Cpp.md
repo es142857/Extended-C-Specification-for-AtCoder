@@ -291,6 +291,7 @@ closing parenthesis after `int(input())` is significant.
 let n = int(input());       // auto n = (int)(input());
 let total = values.sum();   // auto total = ...;
 for (let value : values) {} // for (auto value : values) {}
+for (let[value, index] : pairs) {} // whitespace after let is optional
 let x, y, z = int(input()), int(input()), int(input());
 // auto [x, y, z] = std::tuple{...};
 ```
@@ -362,6 +363,12 @@ print(1, 2, \
 
 Existing semicolons remain valid. Blank lines, comments, preprocessor lines,
 braces, labels, and control-statement headers do not receive extra semicolons.
+Multiple top-level statements may share a line; they are separated before
+implicit declarations are inferred:
+
+```cpp
+res = st = vec(n + 1, 0); cur = n
+```
 
 ## Implicit `solve`
 
