@@ -532,6 +532,24 @@ def split_top_level_statements(source: str) -> str:
     return "".join(output)
 
 
+def translate_inferred_for_bindings(source: str) -> str:
+    """Infer `auto` for a structured binding in `for([a, b] : range)`."""
+    binding = re.compile(
+        r"\bfor[ \t]*\([ \t]*(?P<bracket>\["
+        r"[A-Za-z_]\w*(?:[ \t]*,[ \t]*[A-Za-z_]\w*)*\])"
+        r"[ \t]*:"
+    )
+    mask = code_mask(source)
+    insertions = [
+        match.start("bracket")
+        for match in binding.finditer(source)
+        if mask[match.start()]
+    ]
+    for position in reversed(insertions):
+        source = source[:position] + "auto " + source[position:]
+    return source
+
+
 def find_closing_angle(source: str, opening: int, mask: list[bool]) -> int:
     """Find the `>` paired with a template argument list's opening `<`."""
     depth = 0
@@ -1386,6 +1404,7 @@ def translate(preamble: Path, program: Path) -> str:
         )
 
     translated_main = split_top_level_statements(translated_main)
+    translated_main = translate_inferred_for_bindings(translated_main)
     translated_main = translate_walrus_expressions(translated_main)
     translated_main = translate_chained_assignments(translated_main)
     translated_main = translate_pair_member_aliases(translated_main)
