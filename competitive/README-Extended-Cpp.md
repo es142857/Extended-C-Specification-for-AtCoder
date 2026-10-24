@@ -336,6 +336,22 @@ value = value + 1                // assignment; value already exists
 [a, b] = input(2).map(stoi)      // binds elements [0] and [1]
 ```
 
+Square brackets form a `vec` value when every variable referenced by its
+elements was already declared. This is distinct from a bracketed binding on
+the left side of an assignment:
+
+```cpp
+n = int(input())
+a = [1, n]                       // auto a = vec{1, n};
+f = 0
+print(1 + [1, n][f])             // 2
+[x, y, z] = input(3).map(stoi)   // bracketed binding, not a vec value
+```
+
+The same rule applies to calculated elements such as `[n + 1, 2 * n]`.
+An undeclared name in an element leaves the brackets unchanged rather than
+guessing whether the expression is a list or a binding.
+
 Chained assignments introduce undeclared names from right to left:
 
 ```cpp
