@@ -1056,6 +1056,128 @@ def explicit_declaration_names(code: str, type_names: set[str]) -> list[str]:
     return names
 
 
+def translate_python_list_literals(
+    source: str, defined_names: set[str], type_names: set[str]
+) -> str:
+    """Translate unambiguous Python-style list values to CTAD `vec{...}`."""
+    non_variables = type_names | {
+        "alignof",
+        "and",
+        "bitand",
+        "bitor",
+        "bool",
+        "char",
+        "const",
+        "decltype",
+        "false",
+        "float",
+        "int",
+        "ld",
+        "ll",
+        "long",
+        "new",
+        "noexcept",
+        "not",
+        "nullptr",
+        "or",
+        "short",
+        "signed",
+        "sizeof",
+        "static_cast",
+        "str",
+        "true",
+        "unsigned",
+    }
+
+    while True:
+        mask = code_mask(source)
+        stack: list[int] = []
+        pairs: list[tuple[int, int]] = []
+        for index, character in enumerate(source):
+            if not mask[index]:
+                continue
+            if character == "[":
+                stack.append(index)
+            elif character == "]" and stack:
+                pairs.append((stack.pop(), index))
+
+        replacement: tuple[int, int, str] | None = None
+        for opening, closing in sorted(pairs, reverse=True):
+            previous = opening - 1
+            while previous >= 0 and source[previous].isspace():
+                previous -= 1
+            if previous >= 0 and (
+                source[previous].isalnum()
+                or source[previous] in "_)]}'\""
+            ):
+                token = re.search(r"([A-Za-z_]\w*)[ \t]*$", source[:opening])
+                if not token or token.group(1) not in {"return", "co_return"}:
+                    continue
+
+            following = closing + 1
+            while following < len(source) and source[following].isspace():
+                following += 1
+            if following < len(source):
+                if source[following] == ":":
+                    continue
+                if source[following] == "=" and not source.startswith(
+                    "==", following
+                ):
+                    continue
+                if source[following] in "({":
+                    continue
+                if re.match(
+                    r"(?:mutable|constexpr|consteval|static|noexcept)\b|->",
+                    source[following:],
+                ):
+                    continue
+
+            content = source[opening + 1 : closing]
+            content_mask = code_mask(content)
+            valid = True
+            for identifier in re.finditer(r"\b[A-Za-z_]\w*\b", content):
+                if not content_mask[identifier.start()]:
+                    continue
+                name = identifier.group(0)
+                if name in defined_names or name in non_variables:
+                    continue
+
+                before = identifier.start() - 1
+                while before >= 0 and content[before].isspace():
+                    before -= 1
+                after = identifier.end()
+                while after < len(content) and content[after].isspace():
+                    after += 1
+                is_member = before >= 0 and content[before] == "."
+                is_arrow_member = (
+                    before >= 1 and content[before - 1 : before + 1] == "->"
+                )
+                is_qualified = (
+                    before >= 1 and content[before - 1 : before + 1] == "::"
+                ) or content.startswith("::", after)
+                is_callable_or_type = (
+                    after < len(content) and content[after] in "({"
+                )
+                if (
+                    is_member
+                    or is_arrow_member
+                    or is_qualified
+                    or is_callable_or_type
+                ):
+                    continue
+                valid = False
+                break
+
+            if valid:
+                replacement = (opening, closing + 1, f"vec{{{content}}}")
+                break
+
+        if replacement is None:
+            return source
+        start, end, value = replacement
+        source = source[:start] + value + source[end:]
+
+
 def translate_implicit_let_declarations(
     source: str, type_names: set[str]
 ) -> str:
@@ -1087,6 +1209,7 @@ def translate_implicit_let_declarations(
                 if len(scopes) > 1:
                     scopes.pop()
             brace_scan_start = leading_closures.end()
+        defined_before = set().union(*scopes)
 
         list_match = re.match(
             r"^(?P<indent>[ \t]*)\["
@@ -1111,6 +1234,13 @@ def translate_implicit_let_declarations(
         elif name_match and not is_defined(name_match.group("name")):
             inserted_names = [name_match.group("name")]
             indent_length = len(name_match.group("indent"))
+
+        body = translate_python_list_literals(body, defined_before, type_names)
+        body_mask = code_mask(body)
+        code = "".join(
+            character if body_mask[index] else " "
+            for index, character in enumerate(body)
+        )
 
         if inserted_names:
             body = body[:indent_length] + "let " + body[indent_length:]
@@ -1390,7 +1520,25 @@ def insert_line_semicolons(source: str) -> str:
         if lambda_header.search(prefix):
             lambda_openings.add(position)
 
-    lambda_closings: set[int] = set()
+    expression_brace_openings: set[int] = set(lambda_openings)
+    vector_initializer = re.compile(
+        r"\b(?:vec|vector)(?:[ \t]*<[^{}\r\n]*>)?[ \t]*$"
+    )
+    for position, character in enumerate(source):
+        if character != "{" or not code[position]:
+            continue
+        line_start = max(
+            source.rfind("\n", 0, position),
+            source.rfind("\r", 0, position),
+        ) + 1
+        prefix = "".join(
+            source[index] if code[index] else " "
+            for index in range(line_start, position)
+        )
+        if vector_initializer.search(prefix):
+            expression_brace_openings.add(position)
+
+    expression_brace_closings: set[int] = set()
     brace_stack: list[int] = []
     for position, character in enumerate(source):
         if not code[position]:
@@ -1399,8 +1547,8 @@ def insert_line_semicolons(source: str) -> str:
             brace_stack.append(position)
         elif character == "}" and brace_stack:
             opening = brace_stack.pop()
-            if opening in lambda_openings:
-                lambda_closings.add(position)
+            if opening in expression_brace_openings:
+                expression_brace_closings.add(position)
 
     offsets: list[int] = []
     offset = 0
@@ -1494,8 +1642,8 @@ def insert_line_semicolons(source: str) -> str:
 
         code = code_text[index]
         last_character = body[last]
-        closes_lambda = offsets[index] + last in lambda_closings
-        skip = last_character in ";{}:" and not closes_lambda
+        closes_expression = offsets[index] + last in expression_brace_closings
+        skip = last_character in ";{}:" and not closes_expression
         skip = skip or code.startswith("template")
         skip = skip or code in {"else", "do", "try"}
         skip = skip or is_control_header(code)
