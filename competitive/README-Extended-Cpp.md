@@ -25,6 +25,17 @@ This preserves the language reference and source in copied or submitted
 transpilation results without affecting compilation. The generated C++ and
 its `#line` mappings follow that comment block.
 
+## VS Code highlighting
+
+The Extended C++ VS Code injection grammar is stored in
+`vscode/extended-cpp.injection.json`. In addition to `additional` and `let`, it
+recognizes square-bracket vector literals before the base C++ grammar can
+mistake them for lambda captures. This keeps highlighting synchronized after
+expressions such as `values = [-1]`, while real lambdas such as
+`f = [&](int x) { return x; }` continue to use C++ highlighting. List contents
+use a small dedicated token grammar instead of recursively embedding the full
+C++ grammar, so highlighting state cannot leak into subsequent lines.
+
 ## `additional` syntax
 
 Extensions live in `preamble.ecpp` so contest code stays short:
