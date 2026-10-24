@@ -404,6 +404,17 @@ parameters, and loop variables are tracked as existing names. Tuple-like
 values use normal C++ structured binding; indexable values such as `vec` are
 unpacked by index after evaluating the right-hand side once.
 
+Bracket assignment also unpacks into existing lvalues. It may follow a loop
+macro directly, and the right-hand side is still evaluated only once:
+
+```cpp
+x = y = vector(n, 0ll)
+rep(i, n)[x[i], y[i]] = input(2).map(stoi)
+```
+
+Indexable values use `[0]`, `[1]`, and so on; `pair` and `tuple` values use
+`std::get`. This form is assignment, so it does not declare new names.
+
 Function calls such as `let(x)`, and occurrences inside comments or strings,
 are not rewritten.
 
