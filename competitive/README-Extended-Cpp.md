@@ -195,6 +195,14 @@ sort(values)
 sort(values, greater<int>())
 ```
 
+The member-call form also sorts the receiving vector in place and returns
+`void`:
+
+```cpp
+values.sort()
+values.sort(greater<int>())
+```
+
 Iterator forms such as `sort(a.begin(), a.end())` and existing `sort(all(a))`
 calls continue to work.
 
