@@ -224,6 +224,14 @@ All six operations mutate the receiving container and return `void`, matching
 the corresponding C++ methods. Calling a pop operation on an empty container
 has the same precondition as the native method.
 
+For a container of aggregate elements, a braced element is converted to the
+container's `value_type` before dispatch:
+
+```cpp
+pairs = vec<pair<int, int>>()
+pairs.append({1, 2})   // pairs.push_back(pair<int, int>{1, 2})
+```
+
 ## Concatenating vectors
 
 Adding two vectors with the same element type returns a new vector containing
