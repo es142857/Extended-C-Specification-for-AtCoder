@@ -913,6 +913,16 @@ vec<S> additional vec<S>.reverse() {
 }
 
 template <typename S>
+void additional vec<S>.sort() {
+    std::sort(self.begin(), self.end());
+}
+
+template <typename S, typename F>
+void additional vec<S>.sort(F f) {
+    std::sort(self.begin(), self.end(), f);
+}
+
+template <typename S>
 void additional set<S>.remove(S x) {
     self.erase(x);
 }
