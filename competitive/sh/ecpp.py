@@ -1312,6 +1312,7 @@ def translate_implicit_let_declarations(
 def translate_let_declarations(source: str) -> str:
     """Translate `let` only when it has the shape of a variable declaration."""
     source = translate_bracket_let_declarations(source)
+    source = translate_bracket_assignments(source)
     source = translate_multiple_let_declarations(source)
     declaration = re.compile(
         r"\blet(?=(?:[ \t]+[A-Za-z_]\w*|[ \t]*\[[^\]\n]+\])"
@@ -1410,6 +1411,97 @@ def translate_bracket_let_declarations(source: str) -> str:
             output.append(statement + remainder + trailing + comment + newline)
         else:
             output.append(line)
+        offset += len(line)
+
+    return "".join(output)
+
+
+def translate_bracket_assignments(source: str) -> str:
+    """Unpack a value into existing lvalues, including after loop macros."""
+    comments = comment_mask(source)
+    output: list[str] = []
+    offset = 0
+
+    for line in source.splitlines(keepends=True):
+        newline = ""
+        body = line
+        if line.endswith("\r\n"):
+            body, newline = line[:-2], "\r\n"
+        elif line.endswith("\n") or line.endswith("\r"):
+            body, newline = line[:-1], line[-1]
+
+        comment_at = len(body)
+        for index in range(len(body) - 1):
+            if body[index : index + 2] == "//" and comments[offset + index]:
+                comment_at = index
+                break
+        statement = body[:comment_at]
+        comment = body[comment_at:]
+        trailing = statement[len(statement.rstrip()) :]
+        statement = statement.rstrip()
+        if statement.endswith(";"):
+            statement = statement[:-1].rstrip()
+
+        mask = code_mask(statement)
+        stack: list[int] = []
+        pairs: list[tuple[int, int]] = []
+        for index, character in enumerate(statement):
+            if not mask[index]:
+                continue
+            if character == "[":
+                stack.append(index)
+            elif character == "]" and stack:
+                pairs.append((stack.pop(), index))
+
+        replacement: str | None = None
+        for opening, closing in sorted(pairs):
+            equals = closing + 1
+            while equals < len(statement) and statement[equals] in " \t":
+                equals += 1
+            if equals >= len(statement) or statement[equals] != "=":
+                continue
+            if statement.startswith("==", equals):
+                continue
+
+            targets = [
+                target.strip()
+                for target in split_top_level_commas(
+                    statement[opening + 1 : closing]
+                )
+            ]
+            if len(targets) < 2 or not all(targets):
+                continue
+            prefix = statement[:opening]
+            if re.search(r"\b(?:let|auto)[ \t]*$", prefix):
+                continue
+            value = statement[equals + 1 :].strip()
+            if not value:
+                continue
+
+            requirements = " ".join(
+                f"__ecpp_unpack[{index}];" for index in range(len(targets))
+            )
+            indexed_assignments = " ".join(
+                f"{target} = __ecpp_unpack[{index}];"
+                for index, target in enumerate(targets)
+            )
+            tuple_assignments = " ".join(
+                f"{target} = std::get<{index}>(__ecpp_unpack);"
+                for index, target in enumerate(targets)
+            )
+            replacement = (
+                f"{prefix}([&](auto&& __ecpp_unpack) {{ "
+                f"if constexpr (requires {{ {requirements} }}) {{ "
+                f"{indexed_assignments} "
+                f"}} else {{ {tuple_assignments} }} "
+                f"}})({value})"
+            )
+            break
+
+        if replacement is None:
+            output.append(line)
+        else:
+            output.append(replacement + ";" + trailing + comment + newline)
         offset += len(line)
 
     return "".join(output)
