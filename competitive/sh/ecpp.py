@@ -188,6 +188,15 @@ def translate_calls(source: str, names: set[str]) -> str:
         forwarded_receiver = (
             "std::forward<decltype(__ecpp_receiver)>(__ecpp_receiver)"
         )
+        if (
+            name in {"append", "appendleft"}
+            and arguments.startswith("{")
+            and arguments.endswith("}")
+        ):
+            arguments = (
+                "typename std::remove_cvref_t<decltype(__ecpp_receiver)>"
+                f"::value_type{arguments}"
+            )
         call_args = (
             forwarded_receiver
             if not arguments
