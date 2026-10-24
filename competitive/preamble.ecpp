@@ -943,10 +943,28 @@ void additional vec<S>.append(S x) {
 }
 
 template <typename S>
-S additional vec<S>.pop() {
-    S res = self.back();
+void additional vec<S>.pop() {
     self.pop_back();
-    return res;
+}
+
+template <typename S>
+void additional deque<S>.appendleft(S x) {
+    self.push_front(x);
+}
+
+template <typename S>
+void additional deque<S>.popleft() {
+    self.pop_front();
+}
+
+template <typename S>
+void additional deque<S>.append(S x) {
+    self.push_back(x);
+}
+
+template <typename S>
+void additional deque<S>.pop() {
+    self.pop_back();
 }
 
 int additional str.index(char x) {
