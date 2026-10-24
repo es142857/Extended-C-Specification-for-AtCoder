@@ -1,0 +1,84 @@
+{
+    "scopeName": "extended-cpp.additional",
+    "injectionSelector": "L:source.cpp -comment -string",
+    "patterns": [
+        {
+            "name": "meta.sequence.list.ecpp",
+            "begin": "(?<![\\w)\\]}])\\[(?=[^\\]\\r\\n]*\\](?![ \\t]*(?:[=:]|\\(|\\{|mutable\\b|constexpr\\b|consteval\\b|static\\b|noexcept\\b|->)))",
+            "beginCaptures": {
+                "0": { "name": "punctuation.section.brackets.begin.cpp" }
+            },
+            "end": "\\]",
+            "endCaptures": {
+                "0": { "name": "punctuation.section.brackets.end.cpp" }
+            },
+            "patterns": [
+                { "include": "#list-content" }
+            ]
+        },
+        {
+            "name": "storage.type.template.cpp",
+            "match": "\\badditional\\b"
+        },
+        {
+            "name": "storage.type.primitive.cpp storage.type.built-in.primitive.cpp",
+            "match": "\\blet\\b"
+        }
+    ],
+    "repository": {
+        "nested-square-brackets": {
+            "begin": "\\[",
+            "beginCaptures": {
+                "0": { "name": "punctuation.section.brackets.begin.cpp" }
+            },
+            "end": "\\]",
+            "endCaptures": {
+                "0": { "name": "punctuation.section.brackets.end.cpp" }
+            },
+            "patterns": [
+                { "include": "#list-content" }
+            ]
+        },
+        "list-content": {
+            "patterns": [
+                { "include": "#nested-square-brackets" },
+                {
+                    "name": "string.quoted.double.cpp",
+                    "begin": "\"",
+                    "end": "\"",
+                    "patterns": [
+                        { "name": "constant.character.escape.cpp", "match": "\\\\." }
+                    ]
+                },
+                {
+                    "name": "string.quoted.single.cpp",
+                    "begin": "'",
+                    "end": "'",
+                    "patterns": [
+                        { "name": "constant.character.escape.cpp", "match": "\\\\." }
+                    ]
+                },
+                {
+                    "name": "constant.numeric.cpp",
+                    "match": "(?<![\\w.])(?:0[xX][0-9A-Fa-f']+|0[bB][01']+|(?:[0-9][0-9']*)(?:\\.[0-9']*)?)(?:[eE][+-]?[0-9']+)?[uUlLfF]*(?!\\w)"
+                },
+                {
+                    "name": "constant.language.cpp",
+                    "match": "\\b(?:true|false|nullptr)\\b"
+                },
+                {
+                    "name": "keyword.operator.cpp",
+                    "match": "(?:<<=?|>>=?|<=>|==|!=|<=|>=|&&|\\|\\||\\+\\+|--|->\\*?|\\.\\*|[+*/%&|^~!<>?:=-])"
+                },
+                {
+                    "name": "variable.other.cpp",
+                    "match": "\\b[A-Za-z_]\\w*\\b"
+                },
+                {
+                    "name": "punctuation.separator.delimiter.comma.cpp",
+                    "match": ","
+                }
+            ]
+        }
+    }
+}
