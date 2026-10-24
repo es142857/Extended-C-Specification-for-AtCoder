@@ -206,6 +206,24 @@ values.sort(greater<int>())
 Iterator forms such as `sort(a.begin(), a.end())` and existing `sort(all(a))`
 calls continue to work.
 
+## Sequence mutation aliases
+
+Vectors and deques provide short mutation methods that forward to their C++
+counterparts:
+
+```cpp
+values.append(x)       // vector::push_back(x)
+values.pop()           // vector::pop_back()
+queue.appendleft(x)    // deque::push_front(x)
+queue.popleft()        // deque::pop_front()
+queue.append(x)        // deque::push_back(x)
+queue.pop()            // deque::pop_back()
+```
+
+All six operations mutate the receiving container and return `void`, matching
+the corresponding C++ methods. Calling a pop operation on an empty container
+has the same precondition as the native method.
+
 ## Concatenating vectors
 
 Adding two vectors with the same element type returns a new vector containing
