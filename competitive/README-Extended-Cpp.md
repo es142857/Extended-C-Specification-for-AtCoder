@@ -217,6 +217,21 @@ values.sort(greater<int>())
 Iterator forms such as `sort(a.begin(), a.end())` and existing `sort(all(a))`
 calls continue to work.
 
+`argcmp` sorts coordinate pairs by polar angle, starting at the positive
+x-axis and proceeding counterclockwise. It is a generic comparator object, so
+its coordinate type is inferred when it is passed directly to `sort`:
+
+```cpp
+points = vec{pair{0, -1}, pair{-1, 0}, pair{1, 0}, pair{0, 1}}
+sort(points, argcmp)
+// {(1, 0), (0, 1), (-1, 0), (0, -1)}
+```
+
+The zero vector, whose polar angle is otherwise undefined, is placed before
+all nonzero vectors. Integral coordinates are compared with `__int128`
+products so `int` and `ll` inputs do not overflow during the cross-product
+comparison.
+
 ## Sequence mutation aliases
 
 Vectors and deques provide short mutation methods that forward to their C++

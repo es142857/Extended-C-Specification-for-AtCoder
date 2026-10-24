@@ -298,6 +298,30 @@ vector<S> sorted(vector<S> a) {
     return a;
 }
 
+struct EcppArgCmp {
+    template <typename S>
+    constexpr bool operator()(const pair<S, S>& x, const pair<S, S>& y) const {
+        const bool x_zero = x.first == S{} && x.second == S{};
+        const bool y_zero = y.first == S{} && y.second == S{};
+        if (x_zero != y_zero) return x_zero;
+        if (x_zero) return false;
+
+        const bool x_first_half =
+            x.second > S{} || (x.second == S{} && x.first > S{});
+        const bool y_first_half =
+            y.second > S{} || (y.second == S{} && y.first > S{});
+        if (x_first_half != y_first_half) return x_first_half;
+
+        if constexpr (is_integral_v<S>) {
+            return (__int128)x.first * y.second > (__int128)x.second * y.first;
+        } else {
+            return x.first * y.second > x.second * y.first;
+        }
+    }
+};
+
+inline constexpr EcppArgCmp argcmp{};
+
 #define Seg segtree<S, op, e>
 #define LazySeg lazy_segtree<S, op, e, F, mapping, composition, id>
 
