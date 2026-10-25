@@ -67,9 +67,10 @@ Dispatch is type-aware. If two different types have a method with the same
 name, the `additional` implementation is selected only when its receiver type
 matches; otherwise the original C++ member function is called unchanged.
 
-For `vec<S>.map(x)`, `x` is used directly when it is callable with an `S`.
+For `map(x, vec<S>)`, `x` is used directly when it is callable with an `S`.
 If that form is not valid (for example, an overloaded function name such as
-`stoi`), Extended C++ automatically applies the equivalent of `map(stf(x))`.
+`stoi`), Extended C++ automatically wraps it in a callable that receives each
+element.
 
 For a min-priority queue, both the standard spelling and the shortened
 two-argument spelling below are accepted. The latter is repaired during
@@ -100,7 +101,7 @@ values as a `vec<str>`:
 
 ```cpp
 values = input(3)
-numbers = values.map(stf(stoi))
+numbers = map(stf(stoi), values)
 ```
 
 When a `map` argument is a single identifier such as a function or callable
@@ -108,8 +109,8 @@ variable named `f`, it is shorthand for `f(th)`:
 
 ```cpp
 twice = [](int x) { return x * 2; }
-doubled = iota(5).map(twice)
-// Equivalent to iota(5).map(twice(th)).
+doubled = map(twice, iota(5))
+// Equivalent to map(twice(th), iota(5)).
 ```
 
 This also lets overloaded function names such as `stoi` be written directly
@@ -120,11 +121,11 @@ It provides an implicit-lambda shorthand:
 
 ```cpp
 lis = iota(5)
-doubled = lis.map(th * 2)
+doubled = map(th * 2, lis)
 // {0, 2, 4, 6, 8}
 ```
 
-This is equivalent to `lis.map([](auto&& th) { return th * 2; })`. A `th`
+This is equivalent to `map([](auto&& th) { return th * 2; }, lis)`. A `th`
 written inside an explicit lambda remains that lambda's own name.
 
 Nested implicit `map` and `filter` expressions number their current elements
@@ -132,23 +133,24 @@ by depth: the outer element is `th`, the next element is `th2`, then `th3`,
 and so on. This lets an inner expression refer to every enclosing element:
 
 ```cpp
-table = iota(2).map(iota(3).map(th * 10 + th2))
+table = map(map(th * 10 + th2, iota(3)), iota(2))
 // {{0, 1, 2}, {10, 11, 12}}
 ```
 
 An explicit lambda does not consume a `th` depth; an implicit expression
 inside its body starts again at `th`.
 
-When the argument is not callable, `map(expression)` is shorthand for a
-lambda that ignores the current element and evaluates `expression` once per
-element. This constant-expression behavior applies to expressions rather than
-a single identifier. A zero-argument lambda is called in the same way:
+When the first argument is not callable, `map(expression, values)` is
+shorthand for a lambda that ignores the current element and evaluates
+`expression` once per element. This constant-expression behavior applies to
+expressions rather than a single identifier. A zero-argument lambda is called
+in the same way:
 
 ```cpp
-x = iota(5).map(input(5).map(stoi))
+x = map(map(stoi, input(5)), iota(5))
 // Reads five values five times; x is vector<vector<int>>.
 
-y = iota(3).map([] { return int(input()); })
+y = map([] { return int(input()); }, iota(3))
 // Equivalent to supplying an unused argument to the lambda.
 ```
 
@@ -353,14 +355,14 @@ inferred like `let`, remains available in the current scope, and nested walrus
 expressions are evaluated from the inside out:
 
 ```cpp
-b = sorted(vec{0} + (a := input(n := int(input())).map(stoi)))
+b = sorted(vec{0} + (a := map(stoi, input(n := int(input())))))
 // n is the input count, a is the input vector, and b is its sorted copy
 // with a leading zero. All three names remain available afterward.
 ```
 
 As in Python, parentheses determine which operations belong to the assigned
-expression. In particular, `.map(stoi)` above is applied to `input(n)`, so the
-closing parenthesis after `int(input())` is significant.
+expression. In particular, `map(stoi, input(n))` above reads and converts the
+newly assigned number of values.
 
 `let` is translated to `auto` only when it forms a variable declaration:
 
@@ -385,7 +387,7 @@ not been declared in the current scope:
 value = int(input())             // let value = ...
 value = value + 1                // assignment; value already exists
 [left, right] = make_pair(1, 2)  // let [left, right] = ...
-[a, b] = input(2).map(stoi)      // binds elements [0] and [1]
+[a, b] = map(stoi, input(2))      // binds elements [0] and [1]
 ```
 
 Square brackets form a `vec` value when every variable referenced by its
@@ -397,7 +399,7 @@ n = int(input())
 a = [1, n]                       // auto a = vec{1, n};
 f = 0
 print(1 + [1, n][f])             // 2
-[x, y, z] = input(3).map(stoi)   // bracketed binding, not a vec value
+[x, y, z] = map(stoi, input(3))   // bracketed binding, not a vec value
 ```
 
 The same rule applies to calculated elements such as `[n + 1, 2 * n]`.
@@ -435,7 +437,7 @@ macro directly, and the right-hand side is still evaluated only once:
 
 ```cpp
 x = y = vector(n, 0ll)
-rep(i, n)[x[i], y[i]] = input(2).map(stoi)
+rep(i, n)[x[i], y[i]] = map(stoi, input(2))
 ```
 
 Indexable values use `[0]`, `[1]`, and so on; `pair` and `tuple` values use

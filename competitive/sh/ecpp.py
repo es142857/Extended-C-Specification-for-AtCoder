@@ -166,6 +166,71 @@ def implicit_placeholder_depth(source, target, candidates, mask) -> int:
     return depth
 
 
+def translate_function_map_calls(source: str) -> str:
+    """Translate `map(function, range)` into the internal member dispatch form."""
+    call = re.compile(r"(?<![\w.:>])map[ \t]*\(")
+
+    while True:
+        mask = code_mask(source)
+        candidates = [match for match in call.finditer(source) if mask[match.start()]]
+        transformed = False
+
+        for match in reversed(candidates):
+            opening = match.end() - 1
+            closing = find_closing_paren(source, opening, mask)
+            argument_text = source[opening + 1 : closing]
+            argument_mask = code_mask(argument_text)
+            masked_arguments = "".join(
+                character if argument_mask[index] else " "
+                for index, character in enumerate(argument_text)
+            )
+            arguments = split_top_level_commas(masked_arguments)
+
+            if len(arguments) == 2:
+                comma = len(arguments[0])
+            else:
+                # A comparison such as `th < 3` has no closing `>`, so the
+                # generic comma splitter may mistake it for a template list.
+                # With paired delimiters still respected, its sole top-level
+                # comma is unambiguously the function/range separator.
+                round_depth = square_depth = brace_depth = 0
+                commas: list[int] = []
+                for index, character in enumerate(masked_arguments):
+                    if character == "(":
+                        round_depth += 1
+                    elif character == ")" and round_depth:
+                        round_depth -= 1
+                    elif character == "[":
+                        square_depth += 1
+                    elif character == "]" and square_depth:
+                        square_depth -= 1
+                    elif character == "{":
+                        brace_depth += 1
+                    elif character == "}" and brace_depth:
+                        brace_depth -= 1
+                    elif (
+                        character == ","
+                        and round_depth == square_depth == brace_depth == 0
+                    ):
+                        commas.append(index)
+                if len(commas) != 1:
+                    continue
+                comma = commas[0]
+
+            function = argument_text[:comma].strip()
+            receiver = argument_text[comma + 1 :].strip()
+            if not function or not receiver:
+                continue
+
+            replacement = f"({receiver}).map({function})"
+            source = source[: match.start()] + replacement + source[closing + 1 :]
+            transformed = True
+            break
+
+        if not transformed:
+            return source
+
+
 def translate_calls(source: str, names: set[str]) -> str:
     if not names:
         return source
@@ -1879,6 +1944,7 @@ def translate(preamble: Path, program: Path) -> str:
     implicit_main = translate_implicit_let_declarations(
         translated_main, declared_type_names(sources["preamble.ecpp"])
     )
+    implicit_main = translate_function_map_calls(implicit_main)
 
     translated = {
         "preamble.ecpp": translate_casts(
