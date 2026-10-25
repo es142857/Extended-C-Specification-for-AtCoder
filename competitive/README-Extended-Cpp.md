@@ -116,6 +116,14 @@ doubled = map(twice, iota(5))
 This also lets overloaded function names such as `stoi` be written directly
 when they accept the vector's element type.
 
+As conversion shorthands, `int` and `ll` in the function position are
+translated to `stoi` and `stoll` respectively:
+
+```cpp
+numbers = map(int, input(n))       // map(stoi, input(n))
+large = map(ll, input(n))          // map(stoll, input(n))
+```
+
 Inside a `map` expression, the reserved name `th` means the current element.
 It provides an implicit-lambda shorthand:
 

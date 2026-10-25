@@ -221,6 +221,7 @@ def translate_function_map_calls(source: str) -> str:
             receiver = argument_text[comma + 1 :].strip()
             if not function or not receiver:
                 continue
+            function = {"int": "stoi", "ll": "stoll"}.get(function, function)
 
             replacement = f"({receiver}).map({function})"
             source = source[: match.start()] + replacement + source[closing + 1 :]
