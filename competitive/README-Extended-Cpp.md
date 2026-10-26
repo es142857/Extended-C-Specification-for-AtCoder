@@ -35,6 +35,10 @@ expressions such as `values = [-1]`, while real lambdas such as
 `f = [&](int x) { return x; }` continue to use C++ highlighting. List contents
 use a small dedicated token grammar instead of recursively embedding the full
 C++ grammar, so highlighting state cannot leak into subsequent lines.
+Shorthand structured-binding loops such as `for([x, y] : pairs)` are also
+recognized before the base C++ grammar can mistake the binding for a lambda.
+They are recognized both at the start of a line and after `;`, so the next
+statement starts with a fresh highlighting state in either form.
 
 ## `additional` syntax
 

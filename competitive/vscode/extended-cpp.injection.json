@@ -3,6 +3,23 @@
     "injectionSelector": "L:source.cpp -comment -string",
     "patterns": [
         {
+            "name": "meta.control.for.ecpp",
+            "begin": "(?:(;)([ \\t]*))?(?<!\\w)(for)([ \\t]*)(\\()(?=[ \\t]*\\[)",
+            "beginCaptures": {
+                "1": { "name": "punctuation.terminator.statement.cpp" },
+                "3": { "name": "keyword.control.for.cpp" },
+                "5": { "name": "punctuation.section.parens.begin.bracket.round.cpp" }
+            },
+            "end": "\\)",
+            "endCaptures": {
+                "0": { "name": "punctuation.section.parens.end.bracket.round.cpp" }
+            },
+            "patterns": [
+                { "include": "#structured-binding" },
+                { "include": "source.cpp#evaluation_context" }
+            ]
+        },
+        {
             "name": "meta.sequence.list.ecpp",
             "begin": "(?<![\\w)\\]}])\\[(?=[^\\]\\r\\n]*\\](?![ \\t]*(?:[=:]|\\(|\\{|mutable\\b|constexpr\\b|consteval\\b|static\\b|noexcept\\b|->)))",
             "beginCaptures": {
@@ -26,6 +43,27 @@
         }
     ],
     "repository": {
+        "structured-binding": {
+            "name": "meta.binding.structured.ecpp",
+            "begin": "\\[",
+            "beginCaptures": {
+                "0": { "name": "punctuation.section.brackets.begin.cpp" }
+            },
+            "end": "\\]",
+            "endCaptures": {
+                "0": { "name": "punctuation.section.brackets.end.cpp" }
+            },
+            "patterns": [
+                {
+                    "name": "variable.other.readwrite.cpp",
+                    "match": "\\b[A-Za-z_]\\w*\\b"
+                },
+                {
+                    "name": "punctuation.separator.delimiter.comma.cpp",
+                    "match": ","
+                }
+            ]
+        },
         "nested-square-brackets": {
             "begin": "\\[",
             "beginCaptures": {
