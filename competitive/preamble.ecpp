@@ -293,6 +293,11 @@ auto time() { return chrono::high_resolution_clock::now(); }
 template <typename T> int len(const T& x) { return (int)(x.size()); }
 
 template <typename S>
+S sum(const vector<S>& values) {
+    return std::accumulate(values.begin(), values.end(), S{});
+}
+
+template <typename S>
 vector<S> sorted(vector<S> a) {
     sort(a.begin(), a.end());
     return a;
@@ -958,7 +963,7 @@ void additional set<S>.add(S x) {
 
 template <typename S>
 S additional vec<S>.sum() const {
-    return std::accumulate(self.begin(), self.end(), S{});
+    return sum(self);
 }
 
 template <typename S>
