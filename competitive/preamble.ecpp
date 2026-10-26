@@ -35,9 +35,9 @@ using vec = vector<T>;
 template <typename S, typename T>
 using uomap = unordered_map<S, T>;
 template <typename S>
-using pq = priority_queue<S>;
+using inv_pq = priority_queue<S>;
 template <typename S>
-using inv_pq = priority_queue<S, vec<S>, greater<S>>;
+using pq = priority_queue<S, vec<S>, greater<S>>;
 
 template <typename S, typename T>
 vector<pair<S, T>> operator*(const vector<S>& a, const vector<T>& b) {
