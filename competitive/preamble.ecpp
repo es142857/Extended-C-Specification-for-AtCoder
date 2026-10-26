@@ -900,7 +900,7 @@ struct Graph {
         elif constexpr (is_same_v<T, ll>) mx = 1e18;
         else throw runtime_error("Error: argument of dijkstra not supported");
         vec<T> dis(n, mx); dis[s] = 0;
-        inv_pq<pair<T, int>> q; q.push({0, s});
+        pq<pair<T, int>> q; q.push({0, s});
         while (!q.empty()) {
             auto [d, u] = q.top(); q.pop();
             if (dis[u] != d) continue;
