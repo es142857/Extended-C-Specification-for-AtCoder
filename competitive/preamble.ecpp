@@ -962,11 +962,6 @@ void additional set<S>.add(S x) {
 }
 
 template <typename S>
-S additional vec<S>.sum() const {
-    return sum(self);
-}
-
-template <typename S>
 void additional vec<S>.append(S x) {
     self.push_back(x);
 }

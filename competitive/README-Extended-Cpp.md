@@ -46,8 +46,10 @@ Extensions live in `preamble.ecpp` so contest code stays short:
 
 ```cpp
 template <typename S>
-S additional vector<S>.sum() const {
-    return accumulate(self.begin(), self.end(), S{});
+vec<S> additional vec<S>.reverse() {
+    let result = self;
+    reverse(all(result));
+    return result;
 }
 ```
 
@@ -55,12 +57,12 @@ They are called like regular member functions in `main.ecpp`:
 
 ```cpp
 vector<int> a{1, 2, 3};
-print(a.sum());
+print(a.reverse());
 ```
 
-Both `sum(values)` and `vector<S>.sum()` return `S` and use `S{}` as the
-accumulator's initial zero value. This preserves the element type for `int`,
-`ll`, `ld`, and other addable types; a literal `0` would instead force
+The global `sum(values)` function returns `S` for a `vector<S>` and uses `S{}`
+as the accumulator's initial zero value. This preserves the element type for
+`int`, `ll`, `ld`, and other addable types; a literal `0` would instead force
 `std::accumulate` to use an `int` accumulator:
 
 ```cpp
@@ -384,7 +386,7 @@ newly assigned number of values.
 
 ```cpp
 let n = int(input());       // auto n = (int)(input());
-let total = values.sum();   // auto total = ...;
+let total = sum(values);    // auto total = ...;
 for (let value : values) {} // for (auto value : values) {}
 for (value : values) {}     // `let` may be omitted
 for (let[value, index] : pairs) {} // whitespace after let is optional
