@@ -991,6 +991,13 @@ void additional deque<S>.pop() {
     self.pop_back();
 }
 
+template <typename S, typename Container, typename Compare>
+S additional priority_queue<S, Container, Compare>.pop() {
+    S value = self.top();
+    self.pop();
+    return value;
+}
+
 int additional str.index(char x) {
     rep(i, len(self)) if (self[i] == x) return i;
     kill;

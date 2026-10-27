@@ -270,6 +270,18 @@ All six operations mutate the receiving container and return `void`, matching
 the corresponding C++ methods. Calling a pop operation on an empty container
 has the same precondition as the native method.
 
+For both priority-queue aliases, `pop()` returns the value that was at `top()`
+and removes it from the queue:
+
+```cpp
+low = pq<int>()
+low.push(3); low.push(1)
+print(low.pop()) // 1; the queue now contains only 3
+```
+
+This also requires a nonempty queue, like native `priority_queue::top()` and
+`priority_queue::pop()`.
+
 For a container of aggregate elements, a braced element is converted to the
 container's `value_type` before dispatch:
 
