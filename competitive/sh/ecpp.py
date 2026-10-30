@@ -974,6 +974,37 @@ def translate_sort_calls(source: str) -> str:
     return source
 
 
+def translate_bound_calls(source: str) -> str:
+    """Allow `lower_bound(range, value)` and `upper_bound(range, value)`."""
+    call = re.compile(r"(?<![\w.:>])(?P<name>lower_bound|upper_bound)[ \t]*\(")
+    mask = code_mask(source)
+    replacements: list[tuple[int, int, str]] = []
+
+    for match in call.finditer(source):
+        if not mask[match.start()]:
+            continue
+        opening = match.end() - 1
+        closing = find_closing_paren(source, opening, mask)
+        argument_text = source[opening + 1 : closing]
+        argument_mask = code_mask(argument_text)
+        masked_arguments = "".join(
+            character if argument_mask[index] else " "
+            for index, character in enumerate(argument_text)
+        )
+        arguments = split_top_level_commas(masked_arguments)
+        if len(arguments) != 2 or not all(
+            argument.strip() for argument in arguments
+        ):
+            continue
+        replacements.append(
+            (match.start(), opening, f"std::ranges::{match.group('name')}")
+        )
+
+    for start, end, replacement in reversed(replacements):
+        source = source[:start] + replacement + source[end:]
+    return source
+
+
 BUILTIN_TYPE_NAMES = {
     "auto",
     "bool",
@@ -1940,6 +1971,7 @@ def translate(preamble: Path, program: Path) -> str:
     translated_main = translate_pair_member_aliases(translated_main)
     translated_main = translate_rep_shorthand(translated_main)
     translated_main = translate_sort_calls(translated_main)
+    translated_main = translate_bound_calls(translated_main)
     translated_main = translate_iota_calls(translated_main)
     translated_main = translate_vector_comprehensions(translated_main)
     implicit_main = translate_implicit_let_declarations(

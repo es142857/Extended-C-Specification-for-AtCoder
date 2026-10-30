@@ -237,6 +237,18 @@ values.sort(greater<int>())
 Iterator forms such as `sort(a.begin(), a.end())` and existing `sort(all(a))`
 calls continue to work.
 
+Two-argument `lower_bound` and `upper_bound` calls also accept a vector
+directly:
+
+```cpp
+left = lower_bound(values, target)
+right = upper_bound(values, target)
+```
+
+They return the same iterators as `lower_bound(all(values), target)` and
+`upper_bound(all(values), target)`. The ordinary iterator forms remain
+unchanged.
+
 `argcmp` sorts coordinate pairs by polar angle, starting at the positive
 x-axis and proceeding counterclockwise. It is a generic comparator object, so
 its coordinate type is inferred when it is passed directly to `sort`:
