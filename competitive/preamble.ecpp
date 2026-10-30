@@ -30,8 +30,8 @@ using namespace atcoder;
 using str = string;
 using ld = long double;
 using ll = long long;
-constexpr int inf = 1000000000;
-constexpr ll INF = 1000000000000000000LL;
+constexpr int inf = 1050000000;
+constexpr ll INF = 2000000000000000000LL;
 template <typename T>
 using vec = vector<T>;
 template <typename S, typename T>
