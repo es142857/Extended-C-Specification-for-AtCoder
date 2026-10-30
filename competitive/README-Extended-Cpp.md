@@ -432,6 +432,14 @@ value = value + 1                // assignment; value already exists
 [a, b] = map(stoi, input(2))      // binds elements [0] and [1]
 ```
 
+Prefixing a new name with `&` infers a reference declaration. The reference
+continues to refer to the original element rather than making a copy:
+
+```cpp
+&value = table[key]               // auto& value = table[key];
+value++                           // updates table[key]
+```
+
 Square brackets form a `vec` value when every variable referenced by its
 elements was already declared. This is distinct from a bracketed binding on
 the left side of an assignment:

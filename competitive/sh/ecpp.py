@@ -1287,7 +1287,7 @@ def translate_python_list_literals(
 def translate_implicit_let_declarations(
     source: str, type_names: set[str]
 ) -> str:
-    """Prefix an assignment to a not-yet-declared leading name with `let`."""
+    """Infer declarations for leading value and reference assignments."""
     mask = code_mask(source)
     scopes: list[set[str]] = [set()]
     output: list[str] = []
@@ -1323,6 +1323,11 @@ def translate_implicit_let_declarations(
             r"\][ \t]*=(?!=)",
             code,
         )
+        reference_match = re.match(
+            r"^(?P<indent>[ \t]*)&[ \t]*(?P<name>[A-Za-z_]\w*)"
+            r"[ \t]*=(?!=)",
+            code,
+        )
         name_match = re.match(
             r"^(?P<indent>[ \t]*)(?P<name>[A-Za-z_]\w*)[ \t]*=(?!=)",
             code,
@@ -1337,6 +1342,9 @@ def translate_implicit_let_declarations(
             ):
                 inserted_names = candidates
                 indent_length = len(list_match.group("indent"))
+        elif reference_match and not is_defined(reference_match.group("name")):
+            inserted_names = [reference_match.group("name")]
+            indent_length = len(reference_match.group("indent"))
         elif name_match and not is_defined(name_match.group("name")):
             inserted_names = [name_match.group("name")]
             indent_length = len(name_match.group("indent"))
@@ -1412,7 +1420,8 @@ def translate_let_declarations(source: str) -> str:
     source = translate_bracket_assignments(source)
     source = translate_multiple_let_declarations(source)
     declaration = re.compile(
-        r"\blet(?=(?:[ \t]+[A-Za-z_]\w*|[ \t]*\[[^\]\n]+\])"
+        r"\blet(?=(?:[ \t]+[A-Za-z_]\w*|[ \t]*&[ \t]*[A-Za-z_]\w*|"
+        r"[ \t]*\[[^\]\n]+\])"
         r"[ \t]*(?:=|:|\{|\())"
     )
     mask = code_mask(source)
