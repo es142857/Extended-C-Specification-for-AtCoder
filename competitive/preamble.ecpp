@@ -14,6 +14,11 @@ constexpr bool local = false;
 
 template <class T>
 constexpr T my_min(T a, T b) { return std::min(a, b); }
+template <class T, class Allocator>
+T my_min(const std::vector<T, Allocator>& values) {
+    assert(!values.empty());
+    return *std::min_element(values.begin(), values.end());
+}
 template <class T, class... Ts>
 constexpr auto my_min(T a, Ts... b) { return my_min(a, my_min(b...)); }
 template<class T>

@@ -69,6 +69,14 @@ as the accumulator's initial zero value. This preserves the element type for
 print(sum(map(th * th, iota(5)))) // 30
 ```
 
+`min(values)` returns the smallest element of a nonempty vector. Calls with
+two or more ordinary arguments continue to use the normal value comparison:
+
+```cpp
+min(vec{5, 2, 9}) // 2
+min(5, 2, 9)      // 2
+```
+
 Inside an extension, `self` is the receiving object. Add `const` after the
 parameter list for read-only extensions. The generated `main.cpp` is ordinary
 C++ and should not be edited directly.
