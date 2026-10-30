@@ -974,6 +974,33 @@ def translate_sort_calls(source: str) -> str:
     return source
 
 
+def translate_reverse_calls(source: str) -> str:
+    """Allow a single range argument for `reverse`."""
+    call = re.compile(r"(?<![\w.:>])reverse[ \t]*\(")
+    mask = code_mask(source)
+    replacements: list[tuple[int, int, str]] = []
+
+    for match in call.finditer(source):
+        if not mask[match.start()]:
+            continue
+        opening = match.end() - 1
+        closing = find_closing_paren(source, opening, mask)
+        argument_text = source[opening + 1 : closing]
+        argument_mask = code_mask(argument_text)
+        masked_arguments = "".join(
+            character if argument_mask[index] else " "
+            for index, character in enumerate(argument_text)
+        )
+        arguments = split_top_level_commas(masked_arguments)
+        if len(arguments) != 1 or not arguments[0].strip():
+            continue
+        replacements.append((match.start(), opening, "std::ranges::reverse"))
+
+    for start, end, replacement in reversed(replacements):
+        source = source[:start] + replacement + source[end:]
+    return source
+
+
 def translate_bound_calls(source: str) -> str:
     """Allow `lower_bound(range, value)` and `upper_bound(range, value)`."""
     call = re.compile(r"(?<![\w.:>])(?P<name>lower_bound|upper_bound)[ \t]*\(")
@@ -1077,6 +1104,61 @@ def split_top_level_commas(text: str) -> list[str]:
             start = index + 1
     parts.append(text[start:])
     return parts
+
+
+def translate_record_aliases(source: str) -> str:
+    """Translate `using S = {T field, U other};` into an aggregate struct."""
+    declaration = re.compile(
+        r"\busing[ \t]+(?P<name>[A-Za-z_]\w*)[ \t]*=[ \t]*\{"
+    )
+    mask = code_mask(source)
+    replacements: list[tuple[int, int, str]] = []
+
+    for match in declaration.finditer(source):
+        if not mask[match.start()]:
+            continue
+        opening = match.end() - 1
+        depth = 0
+        closing: int | None = None
+        for index in range(opening, len(source)):
+            if not mask[index]:
+                continue
+            if source[index] == "{":
+                depth += 1
+            elif source[index] == "}":
+                depth -= 1
+                if depth == 0:
+                    closing = index
+                    break
+        if closing is None:
+            raise TranslationError(
+                f"unclosed record declaration at character {match.start()}"
+            )
+
+        fields_text = source[opening + 1 : closing]
+        fields = [field.strip() for field in split_top_level_commas(fields_text)]
+        if len(fields) == 1 and not fields[0]:
+            fields = []
+        if any(not field for field in fields):
+            raise TranslationError(
+                f"empty field in record declaration {match.group('name')}"
+            )
+
+        end = closing + 1
+        while end < len(source) and source[end] in " \t":
+            end += 1
+        if end < len(source) and source[end] == ";":
+            end += 1
+        field_declarations = " ".join(f"{field};" for field in fields)
+        spacing = " " if field_declarations else ""
+        replacement = (
+            f"struct {match.group('name')} {{{spacing}{field_declarations} }};"
+        )
+        replacements.append((match.start(), end, replacement))
+
+    for start, end, replacement in reversed(replacements):
+        source = source[:start] + replacement + source[end:]
+    return source
 
 
 def binding_names(code: str) -> list[str]:
@@ -1961,10 +2043,10 @@ def translate(preamble: Path, program: Path) -> str:
         "preamble.ecpp": preamble.read_text(encoding="utf-8"),
         "main.ecpp": program.read_text(encoding="utf-8"),
     }
-    translated_preamble, extension_names = translate_declarations(
-        sources["preamble.ecpp"]
-    )
-    translated_main, main_extension_names = translate_declarations(sources["main.ecpp"])
+    record_preamble = translate_record_aliases(sources["preamble.ecpp"])
+    record_main = translate_record_aliases(sources["main.ecpp"])
+    translated_preamble, extension_names = translate_declarations(record_preamble)
+    translated_main, main_extension_names = translate_declarations(record_main)
     if main_extension_names:
         names = ", ".join(sorted(main_extension_names))
         raise TranslationError(
@@ -1980,11 +2062,14 @@ def translate(preamble: Path, program: Path) -> str:
     translated_main = translate_pair_member_aliases(translated_main)
     translated_main = translate_rep_shorthand(translated_main)
     translated_main = translate_sort_calls(translated_main)
+    translated_main = translate_reverse_calls(translated_main)
     translated_main = translate_bound_calls(translated_main)
     translated_main = translate_iota_calls(translated_main)
     translated_main = translate_vector_comprehensions(translated_main)
     implicit_main = translate_implicit_let_declarations(
-        translated_main, declared_type_names(sources["preamble.ecpp"])
+        translated_main,
+        declared_type_names(translated_preamble)
+        | declared_type_names(translated_main),
     )
     implicit_main = translate_function_map_calls(implicit_main)
 

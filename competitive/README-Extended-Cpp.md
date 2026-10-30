@@ -237,6 +237,10 @@ values.sort(greater<int>())
 Iterator forms such as `sort(a.begin(), a.end())` and existing `sort(all(a))`
 calls continue to work.
 
+Likewise, `reverse(values)` reverses a complete range in place. It is
+equivalent to `reverse(all(values))`; the ordinary two-iterator form remains
+unchanged.
+
 Two-argument `lower_bound` and `upper_bound` calls also accept a vector
 directly:
 
@@ -390,6 +394,18 @@ step throws `invalid_argument`, corresponding to Python `range`'s zero-step
 error. Every overload returns `vector<int>`.
 
 ## Inferred variables
+
+A short aggregate declaration uses comma-separated fields inside braces:
+
+```cpp
+using Person = {str name, int age, int id}
+// struct Person { str name; int age; int id; };
+
+person = Person{"Alice", 20, 1}
+```
+
+Template field types may contain their own commas, such as
+`pair<int, int> position`.
 
 The walrus operator `name := expression` assigns the expression to `name` and
 leaves `name` as the value of that parenthesized expression. A new name is
