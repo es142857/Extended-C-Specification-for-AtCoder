@@ -305,6 +305,12 @@ vector<S> sorted(vector<S> a) {
     return a;
 }
 
+template <typename S, typename F>
+vector<S> sorted(vector<S> a, F f) {
+    sort(a.begin(), a.end(), f);
+    return a;
+}
+
 struct EcppArgCmp {
     template <typename S>
     constexpr bool operator()(const pair<S, S>& x, const pair<S, S>& y) const {

@@ -229,6 +229,13 @@ ordered = sorted(values)  // {1, 2, 3}
 // values is still {3, 1, 2}.
 ```
 
+A comparator may be passed as the second argument. This also returns a copy
+and leaves the input unchanged:
+
+```cpp
+ordered = sorted(values, [](x, y) { return x.value < y.value; })
+```
+
 `sort(a)` sorts a vector in place. A comparator can be supplied as the second
 argument with `sort(a, f)`:
 
