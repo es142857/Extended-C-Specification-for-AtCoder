@@ -1074,6 +1074,77 @@ def declared_type_names(source: str) -> set[str]:
     return names
 
 
+def translate_lambda_parameter_types(source: str, type_names: set[str]) -> str:
+    """Add `auto` to bare parameters in lambda expressions."""
+    mask = code_mask(source)
+    replacements: list[tuple[int, int, str]] = []
+
+    for capture_open, character in enumerate(source):
+        if character != "[" or not mask[capture_open]:
+            continue
+        if capture_open > 0 and (
+            source[capture_open - 1].isalnum()
+            or source[capture_open - 1] in "_])"
+        ):
+            continue
+        capture_close = find_closing_bracket(source, capture_open, mask)
+        position = capture_close + 1
+        while position < len(source) and source[position] in " \t\r\n":
+            position += 1
+        if position >= len(source) or source[position] != "(":
+            continue
+
+        parameters_open = position
+        parameters_close = find_closing_paren(source, parameters_open, mask)
+        suffix = source[parameters_close + 1 :]
+        lambda_suffix = re.match(
+            r"\s*(?:(?:mutable|constexpr|consteval|static)\s+)*"
+            r"(?:noexcept(?:\s*\([^()\n]*\))?\s*)?"
+            r"(?:->[^{;\n]+\s*)?(?:requires[^{;\n]+\s*)?\{",
+            suffix,
+        )
+        if not lambda_suffix:
+            continue
+        body_open = parameters_close + 1 + lambda_suffix.end() - 1
+        if body_open >= len(mask) or not mask[body_open]:
+            continue
+
+        parameter_text = source[parameters_open + 1 : parameters_close]
+        if not parameter_text.strip():
+            continue
+        parameters = split_top_level_commas(parameter_text)
+        translated: list[str] = []
+        changed = False
+        for parameter in parameters:
+            bare = re.fullmatch(
+                r"\s*(?P<prefix>&&|&|\*)?[ \t]*"
+                r"(?P<name>[A-Za-z_]\w*)"
+                r"(?P<default>[ \t]*=.*)?\s*",
+                parameter,
+            )
+            if not bare:
+                translated.append(parameter.strip())
+                continue
+            name = bare.group("name")
+            if name in type_names or name[:1].isupper():
+                translated.append(parameter.strip())
+                continue
+            prefix = bare.group("prefix") or ""
+            default = bare.group("default") or ""
+            spacing = "" if prefix else " "
+            translated.append(f"auto{prefix}{spacing}{name}{default}")
+            changed = True
+
+        if changed:
+            replacements.append(
+                (parameters_open + 1, parameters_close, ", ".join(translated))
+            )
+
+    for start, end, replacement in reversed(replacements):
+        source = source[:start] + replacement + source[end:]
+    return source
+
+
 def split_top_level_commas(text: str) -> list[str]:
     """Split declarators while ignoring commas inside paired delimiters."""
     parts: list[str] = []
@@ -2054,8 +2125,12 @@ def translate(preamble: Path, program: Path) -> str:
             f"(found in main.ecpp: {names})"
         )
 
+    type_names = declared_type_names(translated_preamble) | declared_type_names(
+        translated_main
+    )
     translated_main = split_top_level_statements(translated_main)
     translated_main = translate_inferred_for_loops(translated_main)
+    translated_main = translate_lambda_parameter_types(translated_main, type_names)
     translated_main = translate_walrus_expressions(translated_main)
     translated_main = translate_chained_assignments(translated_main)
     translated_main = translate_slice_expressions(translated_main)
@@ -2068,8 +2143,7 @@ def translate(preamble: Path, program: Path) -> str:
     translated_main = translate_vector_comprehensions(translated_main)
     implicit_main = translate_implicit_let_declarations(
         translated_main,
-        declared_type_names(translated_preamble)
-        | declared_type_names(translated_main),
+        type_names,
     )
     implicit_main = translate_function_map_calls(implicit_main)
 

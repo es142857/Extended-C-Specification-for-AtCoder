@@ -158,6 +158,17 @@ table = map(map(th * 10 + th2, iota(3)), iota(2))
 An explicit lambda does not consume a `th` depth; an implicit expression
 inside its body starts again at `th`.
 
+Lambda parameter types may be omitted. Every bare parameter receives its own
+`auto`, regardless of the number of parameters:
+
+```cpp
+cmp = [](x, y) { return x.value < y.value; }
+// [](auto x, auto y) { return x.value < y.value; }
+```
+
+Parameters that already have a type, such as `int x` or `auto&& x`, are left
+unchanged.
+
 When the first argument is not callable, `map(expression, values)` is
 shorthand for a lambda that ignores the current element and evaluates
 `expression` once per element. This constant-expression behavior applies to
