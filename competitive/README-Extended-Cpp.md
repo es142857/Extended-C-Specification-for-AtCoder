@@ -294,6 +294,52 @@ all nonzero vectors. Integral coordinates are compared with `__int128`
 products so `int` and `ll` inputs do not overflow during the cross-product
 comparison.
 
+## Segment trees
+
+`segtree_<S, op>` provides the ACL segment-tree interface without requiring
+an identity function template argument. The `Seg` macro expands to this type
+when `S` and `op` are in scope:
+
+```cpp
+using S = int;
+S op(S a, S b) { return max(a, b); }
+Seg seg(values); // segtree_<S, op>
+```
+
+It supports construction from a size or vector, `set`, `get`, `prod`,
+`all_prod`, `max_right`, and `min_left`. A size constructor initializes the
+actual elements with `S{}`; an empty product also returns `S{}`. Padded tree
+nodes are represented internally without injecting `S{}` into `op`.
+
+`lazysegtree_<S, op, F, mapping, composition>` similarly omits both `e` and
+`id`. The `LazySeg` macro expands to this five-argument type. It supports the
+same queries plus point and range `apply`. Pending actions are stored as
+optional values, so `F` does not need a distinguished identity value.
+`composition(f, g)` follows ACL order: apply `g` first, then `f`.
+
+## Graph algorithms
+
+The graph helpers accept adjacency lists directly:
+
+```cpp
+BFS graph(unweighted);
+vector<int> d1 = graph.dist(0);
+
+Dijkstra graph2(weighted);
+auto d2 = graph2.dist(0);
+
+auto weight = MST(weighted);
+LCA ancestor(tree, 0);
+int p = ancestor.lca(a, b);
+```
+
+`BFS` uses `vector<vector<int>>` and returns `-1` for unreachable vertices.
+The weighted adjacency type for `Dijkstra` and `MST` is
+`vector<vector<pair<S, int>>>`, where each pair is `(weight, destination)`.
+Unreachable Dijkstra distances and a disconnected MST result are
+`numeric_limits<S>::max()`. `LCA` expects an unweighted tree and preprocesses
+binary-lifting ancestors from the optional root `r`.
+
 ## Sequence mutation aliases
 
 Vectors and deques provide short mutation methods that forward to their C++
