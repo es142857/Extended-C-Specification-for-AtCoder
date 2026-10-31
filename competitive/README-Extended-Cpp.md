@@ -294,6 +294,31 @@ all nonzero vectors. Integral coordinates are compared with `__int128`
 products so `int` and `ll` inputs do not overflow during the cross-product
 comparison.
 
+## Disjoint-set unions
+
+The ordinary `atcoder::dsu` remains available from ACL. `per_dsu` is a fully
+persistent DSU with the ordinary `merge`, `same`, `leader`, `size`, and
+`groups` operations:
+
+```cpp
+per_dsu uf(n)
+uf.merge(0, 1)
+t = uf.time()
+uf.merge(1, 2)
+uf.rollback(t) // restore version t
+```
+
+Version `0` is the initial state. Every `merge`, including a redundant one,
+creates a new version and `time()` returns its number. `rollback(t)` selects
+any existing version without deleting newer versions; subsequent merges form
+a new branch while every old version remains selectable.
+
+`wei_dsu<S>` stores additive potentials. `merge(u, v, w)` adds the constraint
+`potential[v] - potential[u] == w`, so the reverse direction has weight
+`-w`. `diff(u, v)` returns `{true, potential[v] - potential[u]}` when the two
+vertices are connected, and `{false, S{}}` otherwise. It also provides
+`same`, `leader`, `size`, and `groups`.
+
 ## Segment trees
 
 `segtree_<S, op>` provides the ACL segment-tree interface without requiring
