@@ -19,11 +19,11 @@
 runtime errors. `init` clears `copier.txt`, `in.txt`, `expected_out.txt`,
 `out.txt`, `main.ecpp`, `main.cpp`, and `generator.py`.
 
-The generated `main.cpp` starts with a comment linking to the Extended C++
-specification, followed by a commented copy of the original `main.ecpp`.
-This preserves the language reference and source in copied or submitted
-transpilation results without affecting compilation. The generated C++ and
-its `#line` mappings follow that comment block.
+The generated `main.cpp` starts with one comment linking to the Extended C++
+specification, followed directly by a commented copy of the original
+`main.ecpp`. No generated-source banners or section-marker comments are
+added. The internal member dispatchers are emitted in compact one-line form;
+the generated C++ and its `#line` mappings follow the source comments.
 
 ## VS Code highlighting
 
