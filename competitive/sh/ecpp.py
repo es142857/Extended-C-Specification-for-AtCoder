@@ -403,6 +403,20 @@ def find_closing_bracket(source: str, opening: int, mask: list[bool]) -> int:
     raise TranslationError(f"unclosed subscript at character {opening}")
 
 
+def find_closing_brace(source: str, opening: int, mask: list[bool]) -> int:
+    depth = 0
+    for index in range(opening, len(source)):
+        if not mask[index]:
+            continue
+        if source[index] == "{":
+            depth += 1
+        elif source[index] == "}":
+            depth -= 1
+            if depth == 0:
+                return index
+    raise TranslationError(f"unclosed lambda body at character {opening}")
+
+
 def slice_receiver_start(source: str, opening: int, mask: list[bool]) -> int:
     """Find the expression immediately before a slice subscript."""
     index = opening - 1
@@ -1074,10 +1088,17 @@ def declared_type_names(source: str) -> set[str]:
     return names
 
 
-def translate_lambda_parameter_types(source: str, type_names: set[str]) -> str:
-    """Add `auto` to bare parameters in lambda expressions."""
+def find_lambda_expressions(
+    source: str,
+) -> list[tuple[int, int, int | None, int | None, int, int]]:
+    """Locate lambda captures, optional parameter lists, and bodies."""
     mask = code_mask(source)
-    replacements: list[tuple[int, int, str]] = []
+    result = []
+    suffix_pattern = re.compile(
+        r"\s*(?:(?:mutable|constexpr|consteval|static)\s+)*"
+        r"(?:noexcept(?:\s*\([^()\n]*\))?\s*)?"
+        r"(?:->[^{;\n]+\s*)?(?:requires[^{;\n]+\s*)?\{"
+    )
 
     for capture_open, character in enumerate(source):
         if character != "[" or not mask[capture_open]:
@@ -1089,26 +1110,73 @@ def translate_lambda_parameter_types(source: str, type_names: set[str]) -> str:
             continue
         capture_close = find_closing_bracket(source, capture_open, mask)
         position = capture_close + 1
-        while position < len(source) and source[position] in " \t\r\n":
+        while position < len(source) and source[position].isspace():
             position += 1
-        if position >= len(source) or source[position] != "(":
-            continue
 
-        parameters_open = position
-        parameters_close = find_closing_paren(source, parameters_open, mask)
-        suffix = source[parameters_close + 1 :]
-        lambda_suffix = re.match(
-            r"\s*(?:(?:mutable|constexpr|consteval|static)\s+)*"
-            r"(?:noexcept(?:\s*\([^()\n]*\))?\s*)?"
-            r"(?:->[^{;\n]+\s*)?(?:requires[^{;\n]+\s*)?\{",
-            suffix,
-        )
+        # Preserve explicit lambda template parameter lists, when present.
+        if position < len(source) and source[position] == "<":
+            depth = 0
+            for index in range(position, len(source)):
+                if not mask[index]:
+                    continue
+                if source[index] == "<":
+                    depth += 1
+                elif source[index] == ">":
+                    depth -= 1
+                    if depth == 0:
+                        position = index + 1
+                        break
+            else:
+                continue
+            while position < len(source) and source[position].isspace():
+                position += 1
+
+        parameters_open: int | None = None
+        parameters_close: int | None = None
+        if position < len(source) and source[position] == "(":
+            parameters_open = position
+            parameters_close = find_closing_paren(source, position, mask)
+            suffix_start = parameters_close + 1
+        else:
+            suffix_start = position
+
+        lambda_suffix = suffix_pattern.match(source[suffix_start:])
         if not lambda_suffix:
             continue
-        body_open = parameters_close + 1 + lambda_suffix.end() - 1
+        body_open = suffix_start + lambda_suffix.end() - 1
         if body_open >= len(mask) or not mask[body_open]:
             continue
+        body_close = find_closing_brace(source, body_open, mask)
+        result.append(
+            (
+                capture_open,
+                capture_close,
+                parameters_open,
+                parameters_close,
+                body_open,
+                body_close,
+            )
+        )
+    return result
 
+
+def translate_lambda_parameter_types(source: str, type_names: set[str]) -> str:
+    """Use reference capture for `[]` and add `auto` to bare parameters."""
+    replacements: list[tuple[int, int, str]] = []
+
+    for (
+        capture_open,
+        capture_close,
+        parameters_open,
+        parameters_close,
+        _,
+        _,
+    ) in find_lambda_expressions(source):
+        if not source[capture_open + 1 : capture_close].strip():
+            replacements.append((capture_open, capture_close + 1, "[&]"))
+
+        if parameters_open is None or parameters_close is None:
+            continue
         parameter_text = source[parameters_open + 1 : parameters_close]
         if not parameter_text.strip():
             continue
@@ -1140,9 +1208,187 @@ def translate_lambda_parameter_types(source: str, type_names: set[str]) -> str:
                 (parameters_open + 1, parameters_close, ", ".join(translated))
             )
 
-    for start, end, replacement in reversed(replacements):
+    for start, end, replacement in sorted(replacements, reverse=True):
         source = source[:start] + replacement + source[end:]
     return source
+
+
+def implicit_lambda_return_body(body: str, type_names: set[str]) -> str:
+    """Return the final top-level expression, leaving final operations alone."""
+    mask = code_mask(body)
+    comments = comment_mask(body)
+    round_depth = square_depth = brace_depth = 0
+    semicolons: list[int] = []
+    brace_closings: list[int] = []
+    for index, character in enumerate(body):
+        if not mask[index]:
+            continue
+        if character == "(":
+            round_depth += 1
+        elif character == ")" and round_depth:
+            round_depth -= 1
+        elif character == "[":
+            square_depth += 1
+        elif character == "]" and square_depth:
+            square_depth -= 1
+        elif character == "{":
+            brace_depth += 1
+        elif character == "}" and brace_depth:
+            brace_depth -= 1
+            if round_depth == square_depth == brace_depth == 0:
+                brace_closings.append(index)
+        elif (
+            character == ";"
+            and round_depth == square_depth == brace_depth == 0
+        ):
+            semicolons.append(index)
+
+    code_positions = [
+        index
+        for index, character in enumerate(body)
+        if not comments[index] and not character.isspace()
+    ]
+    if not code_positions:
+        return body
+
+    last_code = code_positions[-1]
+    has_trailing_semicolon = body[last_code] == ";" and last_code in semicolons
+    statement_end = last_code if has_trailing_semicolon else last_code + 1
+    earlier_semicolons = [
+        position for position in semicolons if position < statement_end
+    ]
+    statement_start = (earlier_semicolons[-1] + 1) if earlier_semicolons else 0
+    for closing in brace_closings:
+        following = next(
+            (
+                position
+                for position in code_positions
+                if closing < position < statement_end
+            ),
+            None,
+        )
+        if following is None:
+            continue
+        # A top-level block followed by a fresh token ends the preceding
+        # control statement. Do not split postfix use of a lambda or object.
+        if body[following].isalnum() or body[following] in "_\"'[$":
+            statement_start = max(statement_start, closing + 1)
+    statement_code = [
+        position
+        for position in code_positions
+        if statement_start <= position < statement_end
+    ]
+    if not statement_code:
+        return body
+    first_code, expression_last = statement_code[0], statement_code[-1]
+    clean = "".join(
+        body[index] if not comments[index] else " "
+        for index in range(first_code, expression_last + 1)
+    ).strip()
+    if not clean:
+        return body
+
+    def terminate_statement() -> str:
+        if has_trailing_semicolon:
+            return body
+        return body[: expression_last + 1] + ";" + body[expression_last + 1 :]
+
+    statement_keyword = re.match(r"([A-Za-z_]\w*)", clean)
+    if statement_keyword and statement_keyword.group(1) in {
+        "break",
+        "case",
+        "catch",
+        "co_return",
+        "co_yield",
+        "continue",
+        "default",
+        "do",
+        "else",
+        "for",
+        "goto",
+        "if",
+        "range",
+        "rep",
+        "return",
+        "rrep",
+        "srange",
+        "switch",
+        "throw",
+        "try",
+        "typedef",
+        "using",
+        "while",
+    }:
+        return terminate_statement()
+
+    # A type followed by a declarator is a declaration, while constructions
+    # such as `pair<int,int>{x,y}` remain expressions and are returned.
+    type_pattern = "|".join(
+        sorted((re.escape(name) for name in type_names), key=len, reverse=True)
+    )
+    declaration = re.compile(
+        r"^(?:(?:const|volatile|static|constexpr|consteval|inline)\s+)*"
+        rf"(?:{type_pattern})\b(?:\s*<[^;{{}}]*>)?"
+        r"(?:\s+(?:const\s+)?|\s*[*&]+\s*)"
+        r"[A-Za-z_]\w*(?:\s|=|\[|\(|\{|$)"
+    )
+    if declaration.match(clean):
+        return terminate_statement()
+
+    # Keep a final mutation as a statement. Operators nested in calls,
+    # subscripts, braced initializers, or nested lambdas do not count here.
+    expression = body[first_code : expression_last + 1]
+    expression_mask = code_mask(expression)
+    round_depth = square_depth = brace_depth = 0
+    for index, character in enumerate(expression):
+        if not expression_mask[index]:
+            continue
+        if character == "(":
+            round_depth += 1
+        elif character == ")" and round_depth:
+            round_depth -= 1
+        elif character == "[":
+            square_depth += 1
+        elif character == "]" and square_depth:
+            square_depth -= 1
+        elif character == "{":
+            brace_depth += 1
+        elif character == "}" and brace_depth:
+            brace_depth -= 1
+        elif round_depth == square_depth == brace_depth == 0:
+            pair = expression[index : index + 2]
+            if pair in {"++", "--", "+=", "-=", "*=", "/=", "%=", "&=", "|=", "^="}:
+                return terminate_statement()
+            if character == "=":
+                previous = expression[index - 1] if index else ""
+                following = expression[index + 1] if index + 1 < len(expression) else ""
+                if previous not in "<>=!" and following not in "=>":
+                    return terminate_statement()
+
+    result = body[:first_code] + "return " + body[first_code:]
+    if not has_trailing_semicolon:
+        insertion = expression_last + len("return ") + 1
+        result = result[:insertion] + ";" + result[insertion:]
+    return result
+
+
+def translate_lambda_implicit_returns(source: str, type_names: set[str]) -> str:
+    """Add an implicit return to the last expression of every lambda."""
+    while True:
+        changed = False
+        candidates = sorted(
+            find_lambda_expressions(source), key=lambda item: item[4], reverse=True
+        )
+        for _, _, _, _, body_open, body_close in candidates:
+            body = source[body_open + 1 : body_close]
+            translated = implicit_lambda_return_body(body, type_names)
+            if translated == body:
+                continue
+            source = source[: body_open + 1] + translated + source[body_close:]
+            changed = True
+            break
+        if not changed:
+            return source
 
 
 def split_top_level_commas(text: str) -> list[str]:
@@ -2124,19 +2370,19 @@ def translate(preamble: Path, program: Path) -> str:
     )
     implicit_main = translate_function_map_calls(implicit_main)
 
+    main_body = translate_casts(
+        translate_let_declarations(
+            translate_calls(implicit_main, extension_names)
+        )
+    )
+    main_body = insert_line_semicolons(main_body)
+    main_body = translate_lambda_implicit_returns(main_body, type_names)
+
     translated = {
         "preamble.ecpp": translate_casts(
             translate_let_declarations(translated_preamble)
         ),
-        "main.ecpp": wrap_solve_if_missing(
-            insert_line_semicolons(
-                translate_casts(
-                    translate_let_declarations(
-                        translate_calls(implicit_main, extension_names)
-                    )
-                )
-            )
-        ),
+        "main.ecpp": wrap_solve_if_missing(main_body),
     }
 
     for name in translated:

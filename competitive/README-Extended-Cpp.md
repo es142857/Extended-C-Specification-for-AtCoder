@@ -177,6 +177,22 @@ cmp = [](x, y) { return x.value < y.value; }
 Parameters that already have a type, such as `int x` or `auto&& x`, are left
 unchanged.
 
+An empty lambda capture is always changed to reference capture, and the final
+top-level expression may omit `return`:
+
+```cpp
+f = [](i) { left[i] + right[i] }
+// [&](auto i) { return left[i] + right[i]; }
+
+g = [](x) { count++; count + x }
+// [&](auto x) { count++; return count + x; }
+```
+
+Only the last statement is considered. A final mutation, assignment,
+declaration, control statement, or explicit `return` remains a statement;
+the transpiler only supplies its missing semicolon. Nonempty captures such as
+`[=]` and `[value]` are preserved.
+
 When the first argument is not callable, `map(expression, values)` is
 shorthand for a lambda that ignores the current element and evaluates
 `expression` once per element. This constant-expression behavior applies to
