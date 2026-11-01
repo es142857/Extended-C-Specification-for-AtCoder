@@ -225,6 +225,20 @@ large = values.filter(th >= 4)
 // {4, 5, 6}
 ```
 
+## Index lookup
+
+`text.index(character)` and `values.index(value)` return the zero-based index
+of the first matching element:
+
+```cpp
+text = str("banana")
+text.index('a')          // 1
+vec{4, 7, 4}.index(4)   // 0
+```
+
+The vector element type must support equality comparison. Like Python's
+`index`, lookup fails when no matching element exists.
+
 ## Vector slices
 
 Python-style slicing returns a new vector without changing the source vector.

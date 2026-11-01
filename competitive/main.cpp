@@ -43,6 +43,7 @@ void __ecpp_additional_popleft(deque<S>& self){self.pop_front();}template<typena
 void __ecpp_additional_append(deque<S>& self, S x){self.push_back(x);}template<typename S>
 void __ecpp_additional_pop(deque<S>& self){self.pop_back();}template<typename S,typename Container,typename Compare>
 S __ecpp_additional_pop(priority_queue<S,Container,Compare>& self){S value=self.top();self.pop();return value;}
+template<typename S>int __ecpp_additional_index(const vec<S>& self, const S&x){rep(i,len(self))if(self[i]==x)return i;kill;}
 int __ecpp_additional_index(str& self, char x){rep(i,len(self))if(self[i]==x)return i;kill;}template<typename S,typename F>requires invocable<F&,S>
 auto __ecpp_additional_map(vec<S>& self, F f){if constexpr(is_invocable_v<F&,S>){using T=decay_t<invoke_result_t<F&,S>>;vec<T>res;for(S i:self)res.push_back(f(i));return res;}else if constexpr(requires(S value){f(stoi(value));}){using T=decay_t<decltype(f(stoi(declval<S>())))>;vec<T>res;for(S i:self)res.push_back(f(stoi(i)));return res;}else{static_assert(is_invocable_v<F&,S>,"map function accepts neither the element nor stoi(element)");}}template<typename S,typename F>requires is_invocable_r_v<bool,F&,S>
 vec<S> __ecpp_additional_filter(const vec<S>& self, F f){vec<S>res;res.reserve(self.size());for(S i:self)if(f(i))res.push_back(i);return res;}void solve();int main(){ios::sync_with_stdio(false);cin.tie(nullptr);cout<<fixed<<setprecision(15);

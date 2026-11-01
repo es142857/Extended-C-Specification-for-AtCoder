@@ -41,6 +41,7 @@ void additional deque<S>.popleft(){self.pop_front();}template<typename S>
 void additional deque<S>.append(S x){self.push_back(x);}template<typename S>
 void additional deque<S>.pop(){self.pop_back();}template<typename S,typename Container,typename Compare>
 S additional priority_queue<S,Container,Compare>.pop(){S value=self.top();self.pop();return value;}
+template<typename S>int additional vec<S>.index(const S&x) const{rep(i,len(self))if(self[i]==x)return i;kill;}
 int additional str.index(char x){rep(i,len(self))if(self[i]==x)return i;kill;}template<typename S,typename F>requires invocable<F&,S>
 auto additional vec<S>.map(F f){if constexpr(is_invocable_v<F&,S>){using T=decay_t<invoke_result_t<F&,S>>;vec<T>res;for(S i:self)res.push_back(f(i));return res;}else if constexpr(requires(S value){f(stoi(value));}){using T=decay_t<decltype(f(stoi(declval<S>())))>;vec<T>res;for(S i:self)res.push_back(f(stoi(i)));return res;}else{static_assert(is_invocable_v<F&,S>,"map function accepts neither the element nor stoi(element)");}}template<typename S,typename F>requires is_invocable_r_v<bool,F&,S>
 vec<S> additional vec<S>.filter(F f) const{vec<S>res;res.reserve(self.size());for(S i:self)if(f(i))res.push_back(i);return res;}void solve();int main(){ios::sync_with_stdio(false);cin.tie(nullptr);cout<<fixed<<setprecision(15);
