@@ -3,6 +3,10 @@
     "injectionSelector": "L:source.cpp -comment -string",
     "patterns": [
         {
+            "name": "invalid.illegal.solve-separator.ecpp",
+            "match": "^[ \\t]*---[ \\t]*$"
+        },
+        {
             "name": "meta.function.extension.ecpp",
             "match": "^([ \\t]*)(?:(template[ \\t]*<[^>\\r\\n]*>)([ \\t]*))?([A-Za-z_~][\\w:<>,*& \\t]*)([ \\t]+)([A-Za-z_]\\w*(?:::[A-Za-z_]\\w*)*(?:[ \\t]*<[^>\\r\\n]*>)?)([ \\t]*)(\\.)([ \\t]*)([A-Za-z_]\\w*)(?=[ \\t]*\\([^\\r\\n]*\\)[ \\t]*(?:const[ \\t]*)?\\{)",
             "captures": {

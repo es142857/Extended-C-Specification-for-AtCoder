@@ -2358,6 +2358,43 @@ def wrap_solve_if_missing(source: str) -> str:
     return 'void solve() {\n#line 1 "main.ecpp"\n' + body + "}"
 
 
+def translate_solve_separator(source: str) -> str:
+    """Make the part after a standalone `---` line the body of solve()."""
+    separator = re.compile(r"(?m)^[ \t]*---[ \t]*(?:\r?\n|$)")
+    mask = code_mask(source)
+    matches = [match for match in separator.finditer(source) if mask[match.start()]]
+    if not matches:
+        return source
+    if len(matches) != 1:
+        raise TranslationError("main.ecpp may contain only one `---` solve separator")
+
+    solve_definition = re.compile(
+        r"\bvoid[ \t\r\n]+solve[ \t\r\n]*\([ \t\r\n]*\)[ \t\r\n]*\{"
+    )
+    for match in solve_definition.finditer(source):
+        if mask[match.start()]:
+            raise TranslationError(
+                "`---` solve separator cannot be combined with a solve definition"
+            )
+
+    match = matches[0]
+    prefix = source[: match.start()]
+    suffix = source[match.end() :]
+    suffix_line = source.count("\n", 0, match.end()) + 1
+    if prefix and not prefix.endswith(("\n", "\r")):
+        prefix += "\n"
+    body = suffix.rstrip()
+    if body:
+        body += "\n"
+    return (
+        prefix
+        + "void solve() {\n"
+        + f'#line {suffix_line} "main.ecpp"\n'
+        + body
+        + "}"
+    )
+
+
 def make_dispatchers(names: set[str]) -> str:
     """Generate compact type-aware member dispatchers."""
     dispatchers = []
@@ -2398,7 +2435,9 @@ def translate(preamble: Path, program: Path) -> str:
         "main.ecpp": program.read_text(encoding="utf-8"),
     }
     record_preamble = translate_record_aliases(sources["preamble.ecpp"])
-    record_main = translate_record_aliases(sources["main.ecpp"])
+    record_main = translate_record_aliases(
+        translate_solve_separator(sources["main.ecpp"])
+    )
     translated_preamble, extension_names = translate_declarations(record_preamble)
     translated_main, main_extension_names = translate_declarations(record_main)
     if main_extension_names:

@@ -724,3 +724,18 @@ print(value)
 
 Comments and strings containing the text `void solve()` do not disable this
 wrapping behavior.
+
+A standalone `---` line keeps declarations above it at global scope and
+treats everything below it as the body of `solve`:
+
+```cpp
+struct State { int value; };
+int twice(int x) { return x * 2; }
+---
+n = int(input())
+print(twice(n))
+```
+
+Only one separator is allowed, and it cannot be combined with an explicit
+`void solve()` definition. The VS Code grammar highlights the separator in
+red so the global/body boundary remains visible.
