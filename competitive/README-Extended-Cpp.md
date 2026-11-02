@@ -69,6 +69,25 @@ as the accumulator's initial zero value. This preserves the element type for
 print(sum(map(th * th, iota(5)))) // 30
 ```
 
+`cumsum(values)` builds a one-dimensional prefix sum. `sum(l, r)` returns the
+sum over the half-open interval `[l, r)` in constant time:
+
+```cpp
+c = cumsum(vec{2, 3, 5, 7})
+print(c.sum(1, 3)) // 8
+```
+
+`cumsum2(table)` is the rectangular two-dimensional form. Its
+`sum(u, d, l, r)` returns the sum of rows `[u, d)` and columns `[l, r)`:
+
+```cpp
+c = cumsum2(vec{vec{1, 2, 3}, vec{4, 5, 6}})
+print(c.sum(0, 2, 1, 3)) // 16
+```
+
+Both forms preserve the source element type, including `int` and `ll`, and
+accept empty ranges. `cumsum2` asserts that all rows have the same length.
+
 `min(values)` returns the smallest element of a nonempty vector. Calls with
 two or more ordinary arguments continue to use the normal value comparison:
 
