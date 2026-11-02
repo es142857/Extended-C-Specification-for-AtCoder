@@ -1946,7 +1946,7 @@ def translate_let_declarations(source: str) -> str:
     untyped_input = re.compile(
         r"\blet(?P<spacing>[ \t]+)(?P<name>[A-Za-z_]\w*)"
         r"(?P<equals>[ \t]*=[ \t]*)input[ \t]*\([ \t]*\)"
-        r"(?=[ \t]*(?:;|//|$))"
+        r"(?=[ \t]*(?:;|//|[\r\n]|$))"
     )
     input_mask = code_mask(source)
     input_matches = [
@@ -2642,5 +2642,6 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
 
 
