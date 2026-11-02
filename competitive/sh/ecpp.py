@@ -11,12 +11,14 @@ from pathlib import Path
 
 DECLARATION = re.compile(
     r"(?m)^(?P<indent>[ \t]*)"
-    r"(?P<return>[A-Za-z_~][\w:<>,*& \t]*?)"
-    r"[ \t]+additional[ \t]+"
+    r"(?P<template>template[ \t]*<[^>\n]*>[ \t]*)?"
+    r"(?P<return>(?!(?:return|co_return|if|for|while|switch)\b)"
+    r"[A-Za-z_~][\w:<>,*& \t]*?)"
+    r"[ \t]+(?:(?P<marker>additional)[ \t]+)?"
     r"(?P<receiver>[A-Za-z_][\w:<>,*& \t]*?)"
-    r"[ \t]*\.[ \t]*(?P<name>[A-Za-z_]\w*)[ \t]*"
+    r"[ \t]*(?P<dot>\.)[ \t]*(?P<name>[A-Za-z_]\w*)[ \t]*"
     r"\((?P<arguments>[^()\n]*(?:\([^()\n]*\)[^()\n]*)*)\)"
-    r"(?P<const>[ \t]+const)?"
+    r"(?P<const>[ \t]+const)?(?=[ \t\r\n]*\{)"
 )
 
 
@@ -64,18 +66,53 @@ def code_mask(source: str) -> list[bool]:
 
 def translate_declarations(source: str) -> tuple[str, set[str]]:
     mask = code_mask(source)
-    matches = []
-    for match in DECLARATION.finditer(source):
-        keyword_at = source.find("additional", match.start(), match.end())
-        if keyword_at >= 0 and mask[keyword_at]:
-            matches.append(match)
+    matches = [
+        match
+        for match in DECLARATION.finditer(source)
+        if mask[match.start("return")] and mask[match.start("dot")]
+    ]
 
     names: set[str] = set()
     for match in reversed(matches):
         name = match.group("name")
         names.add(name)
-        return_type = match.group("return").strip()
-        receiver = match.group("receiver").strip()
+        if match.group("marker"):
+            return_type = match.group("return").strip()
+            receiver = match.group("receiver").strip()
+        else:
+            signature = source[match.start("return") : match.start("dot")]
+            angle_depth = round_depth = square_depth = 0
+            boundaries = []
+            index = 0
+            while index < len(signature):
+                character = signature[index]
+                if character == "<":
+                    angle_depth += 1
+                elif character == ">" and angle_depth:
+                    angle_depth -= 1
+                elif character == "(":
+                    round_depth += 1
+                elif character == ")" and round_depth:
+                    round_depth -= 1
+                elif character == "[":
+                    square_depth += 1
+                elif character == "]" and square_depth:
+                    square_depth -= 1
+                elif (
+                    character.isspace()
+                    and angle_depth == round_depth == square_depth == 0
+                ):
+                    end = index + 1
+                    while end < len(signature) and signature[end].isspace():
+                        end += 1
+                    boundaries.append((index, end))
+                    index = end - 1
+                index += 1
+            if not boundaries:
+                continue
+            boundary_start, boundary_end = boundaries[-1]
+            return_type = signature[:boundary_start].strip()
+            receiver = signature[boundary_end:].strip()
         arguments = match.group("arguments").strip()
         is_const = bool(match.group("const"))
         self_type = f"const {receiver}&" if is_const else f"{receiver}&"
@@ -83,7 +120,7 @@ def translate_declarations(source: str) -> tuple[str, set[str]]:
         if arguments and arguments != "void":
             parameters += f", {arguments}"
         replacement = (
-            f"{match.group('indent')}{return_type} "
+            f"{match.group('indent')}{match.group('template') or ''}{return_type} "
             f"__ecpp_additional_{name}({parameters})"
         )
         source = source[: match.start()] + replacement + source[match.end() :]
@@ -2307,14 +2344,6 @@ def make_dispatchers(names: set[str]) -> str:
     return "\n".join(dispatchers)
 
 
-def find_untranslated_keyword(source: str) -> int | None:
-    mask = code_mask(source)
-    for match in re.finditer(r"\badditional\b", source):
-        if mask[match.start()]:
-            return match.start()
-    return None
-
-
 def original_source_comment(source: str) -> str:
     """Render only the specification link and original source comments."""
     normalized = source.replace("\r\n", "\n").replace("\r", "\n")
@@ -2344,7 +2373,7 @@ def translate(preamble: Path, program: Path) -> str:
     if main_extension_names:
         names = ", ".join(sorted(main_extension_names))
         raise TranslationError(
-            "additional declarations belong in preamble.ecpp "
+            "extension method declarations belong in preamble.ecpp "
             f"(found in main.ecpp: {names})"
         )
 
@@ -2384,14 +2413,6 @@ def translate(preamble: Path, program: Path) -> str:
         ),
         "main.ecpp": wrap_solve_if_missing(main_body),
     }
-
-    for name in translated:
-        bad = find_untranslated_keyword(translated[name])
-        if bad is not None:
-            line = translated[name].count("\n", 0, bad) + 1
-            raise TranslationError(
-                f"{name}:{line}: 'additional' declaration could not be parsed"
-            )
 
     return (
         original_source_comment(sources["main.ecpp"])

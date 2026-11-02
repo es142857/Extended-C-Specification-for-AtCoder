@@ -3,6 +3,17 @@
     "injectionSelector": "L:source.cpp -comment -string",
     "patterns": [
         {
+            "name": "meta.function.extension.ecpp",
+            "match": "^([ \\t]*)(?:(template[ \\t]*<[^>\\r\\n]*>)([ \\t]*))?([A-Za-z_~][\\w:<>,*& \\t]*)([ \\t]+)([A-Za-z_]\\w*(?:::[A-Za-z_]\\w*)*(?:[ \\t]*<[^>\\r\\n]*>)?)([ \\t]*)(\\.)([ \\t]*)([A-Za-z_]\\w*)(?=[ \\t]*\\([^\\r\\n]*\\)[ \\t]*(?:const[ \\t]*)?\\{)",
+            "captures": {
+                "2": { "name": "storage.type.template.cpp" },
+                "4": { "name": "storage.type.cpp" },
+                "6": { "name": "storage.type.cpp" },
+                "8": { "name": "punctuation.accessor.cpp" },
+                "10": { "name": "entity.name.function.definition.cpp" }
+            }
+        },
+        {
             "name": "meta.control.for.ecpp",
             "begin": "(?:(;)([ \\t]*))?(?<!\\w)(for)([ \\t]*)(\\()(?=[ \\t]*\\[)",
             "beginCaptures": {

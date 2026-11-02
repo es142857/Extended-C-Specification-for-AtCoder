@@ -28,8 +28,8 @@ the generated C++ and its `#line` mappings follow the source comments.
 ## VS Code highlighting
 
 The Extended C++ VS Code injection grammar is stored in
-`vscode/extended-cpp.injection.json`. In addition to `additional` and `let`, it
-recognizes square-bracket vector literals before the base C++ grammar can
+`vscode/extended-cpp.injection.json`. In addition to `let`, it recognizes
+square-bracket vector literals before the base C++ grammar can
 mistake them for lambda captures. This keeps highlighting synchronized after
 expressions such as `values = [-1]`, while real lambdas such as
 `f = [&](int x) { return x; }` continue to use C++ highlighting. List contents
@@ -40,13 +40,13 @@ recognized before the base C++ grammar can mistake the binding for a lambda.
 They are recognized both at the start of a line and after `;`, so the next
 statement starts with a fresh highlighting state in either form.
 
-## `additional` syntax
+## Extension method syntax
 
 Extensions live in `preamble.ecpp` so contest code stays short:
 
 ```cpp
 template <typename S>
-vec<S> additional vec<S>.reverse() {
+vec<S> vec<S>.reverse() {
     let result = self;
     reverse(all(result));
     return result;
@@ -81,9 +81,11 @@ Inside an extension, `self` is the receiving object. Add `const` after the
 parameter list for read-only extensions. The generated `main.cpp` is ordinary
 C++ and should not be edited directly.
 
-Dispatch is type-aware. If two different types have a method with the same
-name, the `additional` implementation is selected only when its receiver type
-matches; otherwise the original C++ member function is called unchanged.
+The receiver-dot-method declaration syntax is detected automatically; no
+marker keyword is required. Dispatch is type-aware. If two different types
+have a method with the same name, the extension implementation is selected
+only when its receiver type matches; otherwise the original C++ member
+function is called unchanged.
 
 For `map(x, vec<S>)`, `x` is used directly when it is callable with an `S`.
 If that form is not valid (for example, an overloaded function name such as
