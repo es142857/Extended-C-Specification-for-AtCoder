@@ -15,6 +15,9 @@
 - `init`: clear contest working files while keeping templates and tooling
 - `cp`: copy generated `main.cpp` to the clipboard
 
+Common container aliases include `vec<T>` for `vector<T>`, `uomap<K, V>` for
+`unordered_map<K, V>`, and `uoset<T>` for `unordered_set<T>`.
+
 `bo` always removes `a.out` when it finishes, including failed builds and
 runtime errors. `init` clears `copier.txt`, `in.txt`, `expected_out.txt`,
 `out.txt`, `main.ecpp`, `main.cpp`, and `generator.py`.
@@ -784,5 +787,6 @@ print(twice(n))
 Only one separator is allowed, and it cannot be combined with an explicit
 `void solve()` definition. The VS Code grammar highlights the separator in
 red so the global/body boundary remains visible.
+
 
 
