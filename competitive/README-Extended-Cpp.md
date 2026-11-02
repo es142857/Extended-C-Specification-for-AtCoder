@@ -564,6 +564,18 @@ let x, y, z = int(input()), int(input()), int(input());
 // auto [x, y, z] = std::tuple{...};
 ```
 
+For an omitted range binding, the range expression is first bound to one
+internal reference and is therefore evaluated exactly once:
+
+```cpp
+for (value : make_values()) {}
+// for (auto&& __ecpp_range1 = (make_values());
+//      auto value : __ecpp_range1) {}
+```
+
+This also applies to omitted structured bindings. The element declaration
+remains `auto`, preserving the previous per-element copy semantics.
+
 Multiple variables use a structured binding, so their inferred types may
 differ from one another.
 
@@ -653,6 +665,10 @@ rep(2) rep(3) print("six times")
 
 The normal two-argument form `rep(index, count)` is unchanged when the index
 is needed.
+
+The `count` expression of both forms is evaluated exactly once, before the
+first iteration. This remains true when the expression calls a function or
+reads a container size.
 
 ## Automatic semicolons
 

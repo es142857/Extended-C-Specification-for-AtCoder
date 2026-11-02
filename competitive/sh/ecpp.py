@@ -865,7 +865,7 @@ def split_top_level_statements(source: str) -> str:
 
 
 def translate_inferred_for_loops(source: str) -> str:
-    """Infer `auto` for omitted range-for declarations."""
+    """Infer range-for bindings and evaluate each range exactly once."""
     binding = re.compile(
         r"\bfor[ \t]*\([ \t]*(?P<bracket>\["
         r"[A-Za-z_]\w*(?:[ \t]*,[ \t]*[A-Za-z_]\w*)*\])"
@@ -875,18 +875,41 @@ def translate_inferred_for_loops(source: str) -> str:
         r"\bfor[ \t]*\([ \t]*(?P<name>[A-Za-z_]\w*)[ \t]*:"
     )
     mask = code_mask(source)
-    insertions = {
-        match.start("bracket")
+    matches: list[tuple[re.Match[str], str]] = []
+    matches.extend(
+        (match, "bracket")
         for match in binding.finditer(source)
         if mask[match.start()]
-    }
-    insertions.update(
-        match.start("name")
+    )
+    matches.extend(
+        (match, "name")
         for match in variable.finditer(source)
         if mask[match.start()]
     )
-    for position in sorted(insertions, reverse=True):
-        source = source[:position] + "auto " + source[position:]
+    matches.sort(key=lambda item: item[0].start())
+
+    replacements: list[tuple[int, int, str]] = []
+    counter = 1
+    for match, group in matches:
+        opening = source.find("(", match.start(), match.end())
+        closing = find_closing_paren(source, opening, mask)
+        colon = match.end() - 1
+        range_expression = source[colon + 1 : closing].strip()
+        if not range_expression:
+            continue
+        while f"__ecpp_range{counter}" in source:
+            counter += 1
+        range_name = f"__ecpp_range{counter}"
+        counter += 1
+        declaration = source[match.start(group) : match.end(group)]
+        replacement = (
+            f"for(auto&& {range_name}=({range_expression});"
+            f"auto {declaration}:{range_name})"
+        )
+        replacements.append((match.start(), closing + 1, replacement))
+
+    for start, end, replacement in reversed(replacements):
+        source = source[:start] + replacement + source[end:]
     return source
 
 

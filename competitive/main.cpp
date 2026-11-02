@@ -20,7 +20,7 @@ using namespace std;using namespace atcoder;using str=string;using ld=long doubl
 #define elif else if
 #define all(a)a.begin(),a.end()
 #define finish(x){print(x);return;}
-#define rep(i,n)for(int i=0;(i)<(n);(i)++)
+#define rep(i,n)for(int i=0,__ecpp_rep_end=(n);(i)<__ecpp_rep_end;(i)++)
 #define range(i,n,m)for(int i=(n);(i)<(m);(i)++)
 #define rrep(i,n)for(int i=(n)-1;(i)>=0;(i)--)
 #define srange(i,n,m,w)for(int i=(n);i<(m);(i)+=(w))
