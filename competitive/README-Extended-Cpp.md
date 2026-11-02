@@ -311,6 +311,13 @@ They return the same iterators as `lower_bound(all(values), target)` and
 `upper_bound(all(values), target)`. The ordinary iterator forms remain
 unchanged.
 
+The Python-style member forms return insertion indices instead of iterators:
+
+```cpp
+left = values.bisect_left(target)   // first position with value >= target
+right = values.bisect_right(target) // first position with value > target
+```
+
 `argcmp` sorts coordinate pairs by polar angle, starting at the positive
 x-axis and proceeding counterclockwise. It is a generic comparator object, so
 its coordinate type is inferred when it is passed directly to `sort`:
