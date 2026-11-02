@@ -150,7 +150,17 @@ def receiver_start(source: str, dot: int, mask: list[bool]) -> int:
     stops = set(";{}=,+-*/%!&|^?<>\n")
     while i >= 0:
         if not mask[i]:
-            break
+            # String and character literals are indivisible parts of the
+            # receiver (`str("abc").index('a')`, `"abc".index('a')`).
+            # Skip their whole masked span while still stopping at comments.
+            span_start = i
+            while span_start > 0 and not mask[span_start - 1]:
+                span_start -= 1
+            span = source[span_start : i + 1]
+            if span.startswith("//") or span.startswith("/*"):
+                break
+            i = span_start - 1
+            continue
         ch = source[i]
         if ch == ")":
             # A loop/control macro can be immediately followed by its body,
@@ -2632,4 +2642,5 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
 

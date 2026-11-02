@@ -265,6 +265,7 @@ of the first matching element:
 ```cpp
 text = str("banana")
 text.index('a')          // 1
+str("XACGT").index('G') // 3
 vec{4, 7, 4}.index(4)   // 0
 ```
 
@@ -783,4 +784,5 @@ print(twice(n))
 Only one separator is allowed, and it cannot be combined with an explicit
 `void solve()` definition. The VS Code grammar highlights the separator in
 red so the global/body boundary remains visible.
+
 
