@@ -288,6 +288,14 @@ def translate_calls(source: str, names: set[str]) -> str:
         receiver = source[start : match.start()].strip()
         arguments = source[opening + 1 : closing].strip()
         name = match.group("name")
+        if name == "map" and arguments.startswith("{") and arguments.endswith("}"):
+            elements = split_top_level_commas(arguments[1:-1])
+            if len(elements) == 1:
+                arguments = elements[0].strip()
+            elif len(elements) == 2:
+                arguments = f"pair{{{arguments[1:-1]}}}"
+            elif len(elements) > 2:
+                arguments = f"tuple{{{arguments[1:-1]}}}"
         forwarded_receiver = (
             "std::forward<decltype(__ecpp_receiver)>(__ecpp_receiver)"
         )
@@ -1394,9 +1402,10 @@ def implicit_lambda_return_body(body: str, type_names: set[str]) -> str:
     type_pattern = "|".join(
         sorted((re.escape(name) for name in type_names), key=len, reverse=True)
     )
+    inferred_type = rf"(?:{type_pattern}|[A-Z][A-Za-z_0-9]*)"
     declaration = re.compile(
         r"^(?:(?:const|volatile|static|constexpr|consteval|inline)\s+)*"
-        rf"(?:{type_pattern})\b(?:\s*<[^;{{}}]*>)?"
+        rf"{inferred_type}\b(?:\s*<[^;{{}}]*>)?"
         r"(?:\s+(?:const\s+)?|\s*[*&]+\s*)"
         r"[A-Za-z_]\w*(?:\s|=|\[|\(|\{|$)"
     )
@@ -1453,6 +1462,41 @@ def translate_lambda_implicit_returns(source: str, type_names: set[str]) -> str:
             if translated == body:
                 continue
             source = source[: body_open + 1] + translated + source[body_close:]
+            changed = True
+            break
+        if not changed:
+            return source
+
+
+def translate_function_implicit_returns(source: str, type_names: set[str]) -> str:
+    """Add an implicit return to the final expression of ordinary functions."""
+    function = re.compile(
+        r"(?m)^(?P<header>[ \t]*(?:template[ \t]*<[^{}\r\n]+>[ \t]*)?"
+        r"(?P<prefix>[^#;{}\r\n]*?)[ \t]+(?P<name>[A-Za-z_]\w*)"
+        r"[ \t]*\([^;{}\r\n]*\)[ \t]*"
+        r"(?:(?:const|noexcept|override|final)[ \t]*)*"
+        r"(?:->[^{}\r\n]+)?)[ \t]*\{"
+    )
+    excluded = {"if", "for", "while", "switch", "catch", "rep", "range"}
+    while True:
+        mask = code_mask(source)
+        candidates: list[tuple[int, int]] = []
+        for match in function.finditer(source):
+            if not mask[match.start()] or match.group("name") in excluded:
+                continue
+            if "[" in match.group("header"):
+                continue
+            if re.search(r"\bvoid[ \t]*$", match.group("prefix")):
+                continue
+            opening = match.end() - 1
+            candidates.append((opening, find_closing_brace(source, opening, mask)))
+        changed = False
+        for opening, closing in reversed(candidates):
+            body = source[opening + 1 : closing]
+            translated = implicit_lambda_return_body(body, type_names)
+            if translated == body:
+                continue
+            source = source[: opening + 1] + translated + source[closing:]
             changed = True
             break
         if not changed:
@@ -2195,8 +2239,16 @@ def insert_line_semicolons(source: str) -> str:
             lambda_openings.add(position)
 
     expression_brace_openings: set[int] = set(lambda_openings)
+    comma_list_openings: set[int] = set()
     vector_initializer = re.compile(
         r"\b(?:vec|vector)(?:[ \t]*<[^{}\r\n]*>)?[ \t]*$"
+    )
+    function_block = re.compile(
+        r"\)[ \t]*(?:(?:const|noexcept|override|final)[ \t]*)*"
+        r"(?:->[^{}\r\n]+)?$"
+    )
+    non_expression_block = re.compile(
+        r"(?:^|[;}])[ \t]*(?:else|do|try|namespace\b[^{}]*)[ \t]*$"
     )
     for position, character in enumerate(source):
         if character != "{" or not code[position]:
@@ -2209,10 +2261,24 @@ def insert_line_semicolons(source: str) -> str:
             source[index] if code[index] else " "
             for index in range(line_start, position)
         )
-        if vector_initializer.search(prefix):
+        stripped_prefix = prefix.rstrip()
+        previous = stripped_prefix[-1:] if stripped_prefix else ""
+        is_expression = vector_initializer.search(prefix) or (
+            stripped_prefix
+            and previous != ")"
+            and not function_block.search(stripped_prefix)
+            and not non_expression_block.search(stripped_prefix)
+        )
+        if is_expression:
             expression_brace_openings.add(position)
+            if (
+                position not in lambda_openings
+                and not re.match(r"[ \t]*(?:class|struct|union)\b", stripped_prefix)
+            ):
+                comma_list_openings.add(position)
 
     expression_brace_closings: set[int] = set()
+    comma_list_spans: list[tuple[int, int]] = []
     brace_stack: list[int] = []
     for position, character in enumerate(source):
         if not code[position]:
@@ -2223,6 +2289,8 @@ def insert_line_semicolons(source: str) -> str:
             opening = brace_stack.pop()
             if opening in expression_brace_openings:
                 expression_brace_closings.add(position)
+            if opening in comma_list_openings:
+                comma_list_spans.append((opening, position))
 
     offsets: list[int] = []
     offset = 0
@@ -2316,8 +2384,14 @@ def insert_line_semicolons(source: str) -> str:
 
         code = code_text[index]
         last_character = body[last]
-        closes_expression = offsets[index] + last in expression_brace_closings
+        absolute_last = offsets[index] + last
+        closes_expression = absolute_last in expression_brace_closings
+        inside_comma_list = any(
+            opening < absolute_last < closing
+            for opening, closing in comma_list_spans
+        )
         skip = last_character in ";{}:" and not closes_expression
+        skip = skip or inside_comma_list
         skip = skip or code.startswith("template")
         skip = skip or code in {"else", "do", "try"}
         skip = skip or is_control_header(code)
@@ -2475,6 +2549,7 @@ def translate(preamble: Path, program: Path) -> str:
         )
     )
     main_body = insert_line_semicolons(main_body)
+    main_body = translate_function_implicit_returns(main_body, type_names)
     main_body = translate_lambda_implicit_returns(main_body, type_names)
 
     translated = {

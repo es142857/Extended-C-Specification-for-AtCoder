@@ -209,6 +209,14 @@ y = map([] { return int(input()); }, iota(3))
 // Equivalent to supplying an unused argument to the lambda.
 ```
 
+A braced constant result is inferred as its natural tuple-like value. Two
+elements produce a `pair`; three or more produce a `tuple`:
+
+```cpp
+points = iota(n).map({int(input()), int(input())})
+// vector<pair<int, int>>
+```
+
 ## Filtering vectors
 
 `vector<S>.filter(f)` returns a new vector containing only the elements for
@@ -705,6 +713,18 @@ print(1, 2, \
 
 Existing semicolons remain valid. Blank lines, comments, preprocessor lines,
 braces, labels, and control-statement headers do not receive extra semicolons.
+Braced initializers and `struct`, `class`, `union`, and `enum` definitions
+receive their required terminators automatically. The final expression of a
+non-void function also receives an implicit `return`, matching the existing
+lambda shorthand:
+
+```cpp
+using S=pair<int,int>
+S add(S a,S b){{a.f+b.f,a.s+b.s}}
+// using S=pair<int,int>;
+// S add(S a,S b){return {a.first+b.first,a.second+b.second};}
+```
+
 Multiple top-level statements may share a line; they are separated before
 implicit declarations are inferred:
 
