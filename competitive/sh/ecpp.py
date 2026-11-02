@@ -648,8 +648,8 @@ def walrus_rhs_end(source: str, start: int, mask: list[bool]) -> int:
 
 
 def translate_walrus_expressions(source: str) -> str:
-    """Hoist `name := expression` while leaving its assigned value in place."""
-    walrus = re.compile(r"\b(?P<name>[A-Za-z_]\w*)[ \t]*:=[ \t]*")
+    """Translate declaring-name and assignable-lvalue walrus expressions."""
+    walrus = re.compile(r":=[ \t]*")
     output: list[str] = []
 
     for line in source.splitlines(keepends=True):
@@ -667,8 +667,14 @@ def translate_walrus_expressions(source: str) -> str:
             if not matches:
                 break
 
-            candidates: list[tuple[re.Match[str], int]] = []
+            candidates: list[tuple[re.Match[str], int, int, str]] = []
             for match in matches:
+                start = receiver_start(body, match.start(), mask)
+                target = body[start : match.start()].strip()
+                if not target:
+                    raise TranslationError(
+                        f"missing target before walrus at character {match.start()}"
+                    )
                 end = walrus_rhs_end(body, match.end(), mask)
                 nested = any(
                     match.end() <= other.start() < end
@@ -676,19 +682,21 @@ def translate_walrus_expressions(source: str) -> str:
                     if other is not match
                 )
                 if not nested:
-                    candidates.append((match, end))
+                    candidates.append((match, end, start, target))
             if not candidates:
                 raise TranslationError("could not determine walrus expression nesting")
 
-            match, end = candidates[0]
+            match, end, start, target = candidates[0]
             expression = body[match.end() : end].strip()
             if not expression:
                 raise TranslationError(
-                    f"missing expression after walrus assignment to {match.group('name')}"
+                    f"missing expression after walrus assignment to {target}"
                 )
-            name = match.group("name")
-            assignments.append((name, expression))
-            body = body[: match.start()] + name + body[end:]
+            if re.fullmatch(r"[A-Za-z_]\w*", target):
+                assignments.append((target, expression))
+                body = body[:start] + target + body[end:]
+            else:
+                body = body[:start] + f"({target} = {expression})" + body[end:]
 
         if assignments:
             indent = re.match(r"[ \t]*", body).group()

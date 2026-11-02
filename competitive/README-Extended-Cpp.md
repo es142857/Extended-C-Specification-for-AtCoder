@@ -558,6 +558,14 @@ As in Python, parentheses determine which operations belong to the assigned
 expression. In particular, `map(stoi, input(n))` above reads and converts the
 newly assigned number of values.
 
+An assignable expression may also be used on the left. Existing variables,
+members, and indexed elements are updated in place, and the assignment itself
+remains the value of the expression:
+
+```cpp
+res += score.sum(0, (a[i][j] := values.bisect_left(a[i][j])))
+```
+
 `let` is translated to `auto` only when it forms a variable declaration:
 
 ```cpp
