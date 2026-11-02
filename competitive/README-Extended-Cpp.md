@@ -135,6 +135,9 @@ bool enabled = bool(input());
 ld value = ld(input());
 ```
 
+As with Python, an implicitly typed assignment defaults a bare `input()` to
+`str`, so `s = input()` is equivalent to `s = str(input())`.
+
 `input(count)` immediately reads and returns `count` whitespace-delimited
 values as a `vec<str>`:
 
@@ -732,6 +735,8 @@ print(1, 2, \
 
 Existing semicolons remain valid. Blank lines, comments, preprocessor lines,
 braces, labels, and control-statement headers do not receive extra semicolons.
+The last statement immediately before a block's `}` is terminated even when
+it shares the same line, so `if (ok) { work(); break}` is valid.
 Braced initializers and `struct`, `class`, `union`, and `enum` definitions
 receive their required terminators automatically. The final expression of a
 non-void function also receives an implicit `return`, matching the existing
@@ -778,3 +783,4 @@ print(twice(n))
 Only one separator is allowed, and it cannot be combined with an explicit
 `void solve()` definition. The VS Code grammar highlights the separator in
 red so the global/body boundary remains visible.
+

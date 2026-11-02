@@ -1930,6 +1930,26 @@ def translate_let_declarations(source: str) -> str:
     source = translate_bracket_let_declarations(source)
     source = translate_bracket_assignments(source)
     source = translate_multiple_let_declarations(source)
+    # `input()` is context-convertible, but `auto x = input()` cannot provide
+    # that context.  An untyped input declaration therefore defaults to str,
+    # matching Python's input() and the rest of the ECPP input shorthand.
+    untyped_input = re.compile(
+        r"\blet(?P<spacing>[ \t]+)(?P<name>[A-Za-z_]\w*)"
+        r"(?P<equals>[ \t]*=[ \t]*)input[ \t]*\([ \t]*\)"
+        r"(?=[ \t]*(?:;|//|$))"
+    )
+    input_mask = code_mask(source)
+    input_matches = [
+        match
+        for match in untyped_input.finditer(source)
+        if input_mask[match.start()]
+    ]
+    for match in reversed(input_matches):
+        replacement = (
+            f"let{match.group('spacing')}{match.group('name')}"
+            f"{match.group('equals')}str(input())"
+        )
+        source = source[: match.start()] + replacement + source[match.end() :]
     declaration = re.compile(
         r"\blet(?=(?:[ \t]+[A-Za-z_]\w*|[ \t]*&[ \t]*[A-Za-z_]\w*|"
         r"[ \t]*\[[^\]\n]+\])"
@@ -2292,6 +2312,28 @@ def insert_line_semicolons(source: str) -> str:
             if opening in comma_list_openings:
                 comma_list_spans.append((opening, position))
 
+    # A statement may end immediately before a block's closing brace on the
+    # same physical line (`if (ok) { work(); break}`).  Newline insertion
+    # cannot see that boundary, so terminate it here.  Expression braces
+    # (initializers and lambdas) are deliberately excluded.
+    inline_insertions: list[int] = []
+    for closing, character in enumerate(source):
+        if character != "}" or not code[closing]:
+            continue
+        if closing in expression_brace_closings:
+            continue
+        previous = closing - 1
+        while previous >= 0 and (
+            source[previous].isspace() or not code[previous]
+        ):
+            previous -= 1
+        if previous >= 0 and source[previous] not in ";{}:":
+            inline_insertions.append(closing)
+    if inline_insertions:
+        for position in reversed(inline_insertions):
+            source = source[:position] + ";" + source[position:]
+        return insert_line_semicolons(source)
+
     offsets: list[int] = []
     offset = 0
     for line in lines:
@@ -2590,3 +2632,4 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
