@@ -133,14 +133,17 @@ Ordinary double-quoted literals are automatically `str` values. For example,
 valid without an extra conversion.
 
 The casts `int(x)`, `str(x)`, `bool(x)`, and `ld(x)` are translated to the
-corresponding C++ form `(type)(x)`. `input()` reads one whitespace-delimited
-value and converts it to the requested type:
+corresponding C++ form `(type)(x)`. `ll(x)` additionally accepts `str`: it
+uses `stoll(x)` for strings and an ordinary `ll` conversion for numeric
+values. `input()` reads one whitespace-delimited value and converts it to the
+requested type:
 
 ```cpp
 int n = int(input());
 str name = str(input());
 bool enabled = bool(input());
 ld value = ld(input());
+ll large = ll("1234567890123");
 ```
 
 As with Python, an implicitly typed assignment defaults a bare `input()` to
@@ -412,13 +415,14 @@ vertices are connected, and `{false, S{}}` otherwise. It also provides
 ## Segment trees
 
 `segtree_<S, op>` provides the ACL segment-tree interface without requiring
-an identity function template argument. The `Seg` macro expands to this type
-when `S` and `op` are in scope:
+an identity function template argument. The `Seg` macro wraps `op` in a
+concrete `S`-typed callable, so both typed and inferred function parameters
+work when `S` and `op` are in scope:
 
 ```cpp
-using S = int;
-S op(S a, S b) { return max(a, b); }
-Seg seg(values); // segtree_<S, op>
+using S = int
+S op(a, b) { max(a, b) }
+Seg seg(values)
 ```
 
 It supports construction from a size or vector, `set`, `get`, `prod`,
@@ -427,7 +431,8 @@ actual elements with `S{}`; an empty product also returns `S{}`. Padded tree
 nodes are represented internally without injecting `S{}` into `op`.
 
 `lazysegtree_<S, op, F, mapping, composition>` similarly omits both `e` and
-`id`. The `LazySeg` macro expands to this five-argument type. It supports the
+`id`. `LazySeg` wraps all three operations in concrete `S`/`F`-typed
+callables, including when their parameters omit `auto`. It supports the
 same queries plus point and range `apply`. Pending actions are stored as
 optional values, so `F` does not need a distinguished identity value.
 `composition(f, g)` follows ACL order: apply `g` first, then `f`.
@@ -818,6 +823,7 @@ print(twice(n))
 Only one separator is allowed, and it cannot be combined with an explicit
 `void solve()` definition. The VS Code grammar highlights the separator in
 red so the global/body boundary remains visible.
+
 
 
 

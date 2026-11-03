@@ -408,7 +408,7 @@ def translate_calls(source: str, names: set[str]) -> str:
 
 def translate_casts(source: str) -> str:
     """Translate Extended C++ functional casts to explicit C-style casts."""
-    cast = re.compile(r"\b(?P<type>int|str|bool|ld)[ \t]*\(")
+    cast = re.compile(r"\b(?P<type>int|str|bool|ld|ll)[ \t]*\(")
     mask = code_mask(source)
     matches = [match for match in cast.finditer(source) if mask[match.start()]]
     for match in reversed(matches):
@@ -416,7 +416,11 @@ def translate_casts(source: str) -> str:
         closing = find_closing_paren(source, opening, mask)
         if not source[opening + 1 : closing].strip():
             continue
-        replacement = f"({match.group('type')})("
+        replacement = (
+            "__ecpp_ll("
+            if match.group("type") == "ll"
+            else f"({match.group('type')})("
+        )
         source = source[: match.start()] + replacement + source[match.end() :]
     return source
 
@@ -2799,6 +2803,7 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
 
 
 
