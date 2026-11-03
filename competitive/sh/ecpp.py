@@ -2713,6 +2713,11 @@ def translate_global_type_aliases(source: str) -> str:
         return source
     known = set(BUILTIN_TYPE_NAMES)
     known.update(declared_type_names(source))
+    inline = re.compile(
+        r"^(?P<indent>[ \t]*)(?P<name>[A-Za-z_]\w*)[ \t]*=[ \t]*"
+        r"(?P<type>[A-Za-z_]\w*(?:::\w+)*(?:[ \t]*<[^;={}()]+>)?)[ \t]*;"
+        r"(?P<rest>[^\r\n]*)(?P<newline>\r?\n)?$"
+    )
     plain = re.compile(
         r"^(?P<indent>[ \t]*)(?P<name>[A-Za-z_]\w*)[ \t]*=[ \t]*"
         r"(?P<type>[A-Za-z_]\w*(?:::\w+)*(?:[ \t]*<[^;={}()]+>)?)"
@@ -2727,15 +2732,24 @@ def translate_global_type_aliases(source: str) -> str:
     for line in source.splitlines(keepends=True):
         current = line
         if depth == 0:
-            match = plain.match(current)
+            match = inline.match(current)
             if match and match.group("type").split("::", 1)[0].strip() in known:
+                current = (
+                    f'{match.group("indent")}using {match.group("name")}='
+                    f'{match.group("type")};{match.group("rest").lstrip()}'
+                    f'{match.group("newline") or ""}'
+                )
+                known.add(match.group("name"))
+            else:
+                match = plain.match(current)
+            if match and match.re is plain and match.group("type").split("::", 1)[0].strip() in known:
                 newline = "\r\n" if current.endswith("\r\n") else "\n" if current.endswith("\n") else ""
                 current = (
                     f'{match.group("indent")}using {match.group("name")}='
                     f'{match.group("type")};{newline}'
                 )
                 known.add(match.group("name"))
-            else:
+            elif not (match and match.re is inline):
                 match = walrus.match(current)
                 if match and match.group("type").split("::", 1)[0].strip() in known:
                     current = (
@@ -2878,6 +2892,7 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
 
 
 

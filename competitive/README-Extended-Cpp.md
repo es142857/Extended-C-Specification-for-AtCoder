@@ -835,8 +835,10 @@ the same shorthand:
 ```cpp
 S=ll
 (T:=ll) op(a,b){max(a,b)}
+U=ll;combine(a,b){a+b}
 // using S=ll;
 // using T=ll; auto op(auto a,auto b){return max(a,b);}
+// using U=ll; auto combine(auto a,auto b){return a+b;}
 ---
 ```
 
@@ -846,6 +848,7 @@ inside `solve`.
 Only one separator is allowed, and it cannot be combined with an explicit
 `void solve()` definition. The VS Code grammar highlights the separator in
 red so the global/body boundary remains visible.
+
 
 
 
