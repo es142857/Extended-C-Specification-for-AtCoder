@@ -209,6 +209,18 @@ cmp = [](x, y) { return x.value < y.value; }
 Parameters that already have a type, such as `int x` or `auto&& x`, are left
 unchanged.
 
+Ordinary function definitions use the same shorthand. Each bare parameter is
+given its own `auto`, while the declared return type is preserved:
+
+```cpp
+using S=ll
+S op(a,b){max(a,b)}
+// S op(auto a,auto b){return max(a,b);}
+```
+
+Typed and inferred parameters may be mixed, and `&x`, `&&x`, and default
+arguments retain their declarator syntax.
+
 An empty lambda capture is always changed to reference capture, and the final
 top-level expression may omit `return`:
 
@@ -806,6 +818,7 @@ print(twice(n))
 Only one separator is allowed, and it cannot be combined with an explicit
 `void solve()` definition. The VS Code grammar highlights the separator in
 red so the global/body boundary remains visible.
+
 
 
 

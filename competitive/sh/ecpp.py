@@ -1401,6 +1401,59 @@ def translate_lambda_parameter_types(source: str, type_names: set[str]) -> str:
     return source
 
 
+def translate_function_parameter_types(source: str, type_names: set[str]) -> str:
+    """Add `auto` to bare parameters of ordinary function definitions."""
+    header = re.compile(
+        r"(?m)^[ \t]*(?:template[ \t]*<[^{}\r\n]+>[ \t]*)?"
+        r"[A-Za-z_~][\w:<>,*& \t]*?[ \t]+"
+        r"(?:[A-Za-z_]\w*::)*[A-Za-z_]\w*[ \t]*\("
+    )
+    suffix = re.compile(
+        r"^[ \t]*(?:(?:const|noexcept|override|final)[ \t]*)*"
+        r"(?:->[^{}\r\n]+)?[ \t]*\{"
+    )
+    mask = code_mask(source)
+    replacements: list[tuple[int, int, str]] = []
+    for match in header.finditer(source):
+        if not mask[match.start()]:
+            continue
+        opening = match.end() - 1
+        closing = find_closing_paren(source, opening, mask)
+        if not suffix.match(source[closing + 1 :]):
+            continue
+        parameter_text = source[opening + 1 : closing]
+        if not parameter_text.strip():
+            continue
+        parameters = split_top_level_commas(parameter_text)
+        translated: list[str] = []
+        changed = False
+        for parameter in parameters:
+            bare = re.fullmatch(
+                r"\s*(?P<prefix>&&|&|\*)?[ \t]*"
+                r"(?P<name>[A-Za-z_]\w*)"
+                r"(?P<default>[ \t]*=.*)?\s*",
+                parameter,
+            )
+            if not bare:
+                translated.append(parameter.strip())
+                continue
+            name = bare.group("name")
+            if name in type_names or name[:1].isupper():
+                translated.append(parameter.strip())
+                continue
+            prefix = bare.group("prefix") or ""
+            default = bare.group("default") or ""
+            spacing = "" if prefix else " "
+            translated.append(f"auto{prefix}{spacing}{name}{default}")
+            changed = True
+        if changed:
+            replacements.append((opening + 1, closing, ", ".join(translated)))
+
+    for start, end, replacement in reversed(replacements):
+        source = source[:start] + replacement + source[end:]
+    return source
+
+
 def implicit_lambda_return_body(body: str, type_names: set[str]) -> str:
     """Return the final top-level expression, leaving final operations alone."""
     mask = code_mask(body)
@@ -2682,6 +2735,7 @@ def translate(preamble: Path, program: Path) -> str:
     translated_main = translate_string_literals(translated_main)
     translated_main = translate_inferred_for_loops(translated_main)
     translated_main = translate_lambda_parameter_types(translated_main, type_names)
+    translated_main = translate_function_parameter_types(translated_main, type_names)
     translated_main = translate_walrus_expressions(translated_main)
     translated_main = translate_chained_assignments(translated_main)
     translated_main = translate_slice_expressions(translated_main)
@@ -2745,6 +2799,7 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
 
 
 
