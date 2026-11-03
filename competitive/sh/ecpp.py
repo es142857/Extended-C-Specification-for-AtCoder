@@ -421,6 +421,101 @@ def translate_casts(source: str) -> str:
     return source
 
 
+def translate_string_literals(source: str) -> str:
+    """Give ordinary double-quoted literals the ECPP `str` value type."""
+    output: list[str] = []
+    index = 0
+    line_start = True
+    while index < len(source):
+        if line_start:
+            probe = index
+            while probe < len(source) and source[probe] in " \t":
+                probe += 1
+            if probe < len(source) and source[probe] == "#":
+                end = source.find("\n", probe)
+                end = len(source) if end == -1 else end + 1
+                output.append(source[index:end])
+                index = end
+                line_start = True
+                continue
+        if source.startswith("//", index):
+            end = source.find("\n", index)
+            end = len(source) if end == -1 else end + 1
+            output.append(source[index:end])
+            index = end
+            line_start = True
+            continue
+        if source.startswith("/*", index):
+            end = source.find("*/", index + 2)
+            end = len(source) if end == -1 else end + 2
+            block = source[index:end]
+            output.append(block)
+            index = end
+            line_start = block.endswith("\n")
+            continue
+        if source[index] == "'":
+            end = index + 1
+            while end < len(source):
+                if source[end] == "\\":
+                    end += 2
+                elif source[end] == "'":
+                    end += 1
+                    break
+                else:
+                    end += 1
+            output.append(source[index:end])
+            index = end
+            line_start = False
+            continue
+        if source[index] == '"':
+            literal_prefix = re.search(r"(?:u8|[uULR])$", source[:index])
+            end = index + 1
+            while end < len(source):
+                if source[end] == "\\":
+                    end += 2
+                elif source[end] == '"':
+                    end += 1
+                    break
+                else:
+                    end += 1
+            literal = source[index:end]
+            if literal_prefix:
+                output.append(literal)
+                index = end
+                line_start = False
+                continue
+            # Preserve C++'s adjacent-literal concatenation inside one str.
+            chain_end = end
+            while True:
+                next_start = chain_end
+                while next_start < len(source) and source[next_start].isspace():
+                    next_start += 1
+                if next_start >= len(source) or source[next_start] != '"':
+                    break
+                next_end = next_start + 1
+                while next_end < len(source):
+                    if source[next_end] == "\\":
+                        next_end += 2
+                    elif source[next_end] == '"':
+                        next_end += 1
+                        break
+                    else:
+                        next_end += 1
+                chain_end = next_end
+            literal = source[index:chain_end]
+            prefix = "".join(output)
+            already_str = re.search(r"\bstr[ \t]*\([ \t]*$", prefix) is not None
+            output.append(literal if already_str else f"(str({literal}))")
+            index = chain_end
+            line_start = False
+            continue
+        character = source[index]
+        output.append(character)
+        index += 1
+        line_start = character in "\r\n"
+    return "".join(output)
+
+
 def translate_pair_member_aliases(source: str) -> str:
     """Translate pair `.f` and `.s` aliases to `.first` and `.second`."""
     mask = code_mask(source)
@@ -2577,6 +2672,7 @@ def translate(preamble: Path, program: Path) -> str:
         translated_main
     )
     translated_main = split_top_level_statements(translated_main)
+    translated_main = translate_string_literals(translated_main)
     translated_main = translate_inferred_for_loops(translated_main)
     translated_main = translate_lambda_parameter_types(translated_main, type_names)
     translated_main = translate_walrus_expressions(translated_main)
@@ -2642,6 +2738,7 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
 
 
 

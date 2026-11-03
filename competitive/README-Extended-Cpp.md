@@ -128,6 +128,10 @@ priority_queue<pair<ll,int>,vector<pair<ll,int>,greater<>>> q
 
 ## Casts and input
 
+Ordinary double-quoted literals are automatically `str` values. For example,
+`"abc"` is translated as `(str("abc"))`; an explicit `str("abc")` remains
+valid without an extra conversion.
+
 The casts `int(x)`, `str(x)`, `bool(x)`, and `ld(x)` are translated to the
 corresponding C++ form `(type)(x)`. `input()` reads one whitespace-delimited
 value and converts it to the requested type:
@@ -446,16 +450,25 @@ counterparts:
 
 ```cpp
 values.append(x)       // vector::push_back(x)
-values.pop()           // vector::pop_back()
+last = values.pop()    // move back(), pop_back(), then return last
 queue.appendleft(x)    // deque::push_front(x)
 queue.popleft()        // deque::pop_front()
 queue.append(x)        // deque::push_back(x)
 queue.pop()            // deque::pop_back()
 ```
 
-All six operations mutate the receiving container and return `void`, matching
-the corresponding C++ methods. Calling a pop operation on an empty container
-has the same precondition as the native method.
+`vector::pop()` returns the removed last element. The other five operations
+return `void`, matching the corresponding C++ methods. Calling a pop operation
+on an empty container has the same precondition as the native method.
+
+Both ordered and unordered sets provide Python-style removal:
+
+```cpp
+items = set<str>{"a", "b"}
+items.remove("a")
+fast = uoset<str>{"x", "y"}
+fast.remove("x")
+```
 
 For both priority-queue aliases, `pop()` returns the value that was at `top()`
 and removes it from the queue:
@@ -791,6 +804,7 @@ print(twice(n))
 Only one separator is allowed, and it cannot be combined with an explicit
 `void solve()` definition. The VS Code grammar highlights the separator in
 red so the global/body boundary remains visible.
+
 
 
 
