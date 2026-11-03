@@ -2707,6 +2707,53 @@ def translate_solve_separator(source: str) -> str:
     )
 
 
+def translate_global_type_aliases(source: str) -> str:
+    """Infer global type aliases from `S=ll` and `(S:=ll)` prefixes."""
+    if not re.search(r"\bvoid[ \t\r\n]+solve[ \t\r\n]*\(", source):
+        return source
+    known = set(BUILTIN_TYPE_NAMES)
+    known.update(declared_type_names(source))
+    plain = re.compile(
+        r"^(?P<indent>[ \t]*)(?P<name>[A-Za-z_]\w*)[ \t]*=[ \t]*"
+        r"(?P<type>[A-Za-z_]\w*(?:::\w+)*(?:[ \t]*<[^;={}()]+>)?)"
+        r"(?P<tail>[ \t]*;?[ \t]*(?://.*)?(?:\r?\n)?$)"
+    )
+    walrus = re.compile(
+        r"^(?P<indent>[ \t]*)\([ \t]*(?P<name>[A-Za-z_]\w*)[ \t]*:=[ \t]*"
+        r"(?P<type>[A-Za-z_]\w*(?:::\w+)*(?:[ \t]*<[^;={}()]+>)?)[ \t]*\)"
+    )
+    output: list[str] = []
+    depth = 0
+    for line in source.splitlines(keepends=True):
+        current = line
+        if depth == 0:
+            match = plain.match(current)
+            if match and match.group("type").split("::", 1)[0].strip() in known:
+                newline = "\r\n" if current.endswith("\r\n") else "\n" if current.endswith("\n") else ""
+                current = (
+                    f'{match.group("indent")}using {match.group("name")}='
+                    f'{match.group("type")};{newline}'
+                )
+                known.add(match.group("name"))
+            else:
+                match = walrus.match(current)
+                if match and match.group("type").split("::", 1)[0].strip() in known:
+                    current = (
+                        f'{match.group("indent")}using {match.group("name")}='
+                        f'{match.group("type")};'
+                        + current[match.end() :].lstrip()
+                    )
+                    known.add(match.group("name"))
+        output.append(current)
+        mask = code_mask(current)
+        depth += sum(
+            1 if character == "{" else -1 if character == "}" else 0
+            for index, character in enumerate(current)
+            if mask[index]
+        )
+    return "".join(output)
+
+
 def make_dispatchers(names: set[str]) -> str:
     """Generate compact type-aware member dispatchers."""
     dispatchers = []
@@ -2748,7 +2795,7 @@ def translate(preamble: Path, program: Path) -> str:
     }
     record_preamble = translate_record_aliases(sources["preamble.ecpp"])
     record_main = translate_record_aliases(
-        translate_solve_separator(sources["main.ecpp"])
+        translate_global_type_aliases(translate_solve_separator(sources["main.ecpp"]))
     )
     translated_preamble, extension_names = translate_declarations(record_preamble)
     translated_main, main_extension_names = translate_declarations(record_main)
@@ -2831,6 +2878,7 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
 
 
 

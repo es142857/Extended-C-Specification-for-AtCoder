@@ -828,9 +828,25 @@ n = int(input())
 print(twice(n))
 ```
 
+At global scope, an assignment whose right side is a recognized type is an
+inferred type alias. A walrus prefix before a function definition provides
+the same shorthand:
+
+```cpp
+S=ll
+(T:=ll) op(a,b){max(a,b)}
+// using S=ll;
+// using T=ll; auto op(auto a,auto b){return max(a,b);}
+---
+```
+
+Ordinary value expressions are not aliases, and this inference is not applied
+inside `solve`.
+
 Only one separator is allowed, and it cannot be combined with an explicit
 `void solve()` definition. The VS Code grammar highlights the separator in
 red so the global/body boundary remains visible.
+
 
 
 
