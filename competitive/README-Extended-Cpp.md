@@ -603,7 +603,9 @@ b = sorted(vec{0} + (a := map(stoi, input(n := int(input())))))
 ```
 
 A newly declared walrus name also applies the normal bare-input inference, so
-`len(s := input())` declares `s` as `str`.
+`len(s := input())` declares `s` as `str`. The input operation remains at the
+walrus expression's evaluation point; for example, a walrus inside `rep(...)`
+reads a new value on every iteration instead of being hoisted before the loop.
 
 As in Python, parentheses determine which operations belong to the assigned
 expression. In particular, `map(stoi, input(n))` above reads and converts the
@@ -804,6 +806,7 @@ print(twice(n))
 Only one separator is allowed, and it cannot be combined with an explicit
 `void solve()` definition. The VS Code grammar highlights the separator in
 red so the global/body boundary remains visible.
+
 
 
 

@@ -773,7 +773,7 @@ def translate_walrus_expressions(source: str) -> str:
         else:
             body, newline = line, ""
 
-        assignments: list[tuple[str, str]] = []
+        assignments: list[tuple[str, str, bool]] = []
         while True:
             mask = code_mask(body)
             matches = [match for match in walrus.finditer(body) if mask[match.start()]]
@@ -806,15 +806,22 @@ def translate_walrus_expressions(source: str) -> str:
                     f"missing expression after walrus assignment to {target}"
                 )
             if re.fullmatch(r"[A-Za-z_]\w*", target):
-                assignments.append((target, expression))
-                body = body[:start] + target + body[end:]
+                inline_input = re.fullmatch(
+                    r"input[ \t]*\([ \t]*\)", expression
+                ) is not None
+                assignments.append((target, expression, inline_input))
+                replacement = (
+                    f"({target} = str({expression}))" if inline_input else target
+                )
+                body = body[:start] + replacement + body[end:]
             else:
                 body = body[:start] + f"({target} = {expression})" + body[end:]
 
         if assignments:
             indent = re.match(r"[ \t]*", body).group()
-            for name, expression in assignments:
-                output.append(f"{indent}{name} = {expression}{newline or chr(10)}")
+            for name, expression, inline_input in assignments:
+                declaration = f"str {name}" if inline_input else f"{name} = {expression}"
+                output.append(f"{indent}{declaration}{newline or chr(10)}")
         output.append(body + newline)
 
     return "".join(output)
@@ -2738,6 +2745,7 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
 
 
 
