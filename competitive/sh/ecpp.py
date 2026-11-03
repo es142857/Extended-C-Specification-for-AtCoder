@@ -1250,18 +1250,46 @@ BUILTIN_TYPE_NAMES = {
     "ll",
     "long",
     "mint",
+    "map",
     "pair",
     "priority_queue",
     "short",
     "signed",
     "size_t",
     "str",
+    "set",
+    "stmap",
+    "stset",
     "tuple",
+    "uomap",
+    "uoset",
     "unsigned",
     "vec",
     "vector",
     "void",
 }
+
+
+def translate_container_type_names(source: str) -> str:
+    """Use hash containers by default and `st*` names for ordered ones."""
+    aliases = {
+        "map": "uomap",
+        "set": "uoset",
+        "stmap": "std::map",
+        "stset": "std::set",
+    }
+    pattern = re.compile(r"\b(stmap|stset|map|set)(?=[ \t\r\n]*<)")
+    mask = code_mask(source)
+    output: list[str] = []
+    position = 0
+    for match in pattern.finditer(source):
+        if not mask[match.start()]:
+            continue
+        output.append(source[position : match.start()])
+        output.append(aliases[match.group(1)])
+        position = match.end()
+    output.append(source[position:])
+    return "".join(output)
 
 
 def declared_type_names(source: str) -> set[str]:
@@ -2808,8 +2836,10 @@ def translate(preamble: Path, program: Path) -> str:
         "main.ecpp": program.read_text(encoding="utf-8"),
     }
     record_preamble = translate_record_aliases(sources["preamble.ecpp"])
-    record_main = translate_record_aliases(
-        translate_global_type_aliases(translate_solve_separator(sources["main.ecpp"]))
+    record_main = translate_container_type_names(
+        translate_record_aliases(
+            translate_global_type_aliases(translate_solve_separator(sources["main.ecpp"]))
+        )
     )
     translated_preamble, extension_names = translate_declarations(record_preamble)
     translated_main, main_extension_names = translate_declarations(record_main)
@@ -2892,6 +2922,7 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
 
 
 

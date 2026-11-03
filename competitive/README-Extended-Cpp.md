@@ -15,9 +15,11 @@
 - `init`: clear contest working files while keeping templates and tooling
 - `cp`: copy generated `main.cpp` to the clipboard
 
-Common container aliases include `vec<T>` for `vector<T>`, `uomap<K, V>` for
-`unordered_map<K, V>`, and `uoset<T>` for `unordered_set<T>`. Both `set<T>`
-and `uoset<T>` support `.add(value)` as an alias of `.insert(value)`.
+Common container aliases include `vec<T>` for `vector<T>`. ECPP uses hash
+containers by default: `map<K,V>` and `set<T>` become `unordered_map<K,V>`
+and `unordered_set<T>`. Use `stmap<K,V>` and `stset<T>` for the ordered STL
+containers. The older `uomap` and `uoset` names remain available. This type
+rewrite does not affect the functional `map(function, values)` form.
 
 `bo` always removes `a.out` when it finishes, including failed builds and
 runtime errors. `init` clears `copier.txt`, `in.txt`, `expected_out.txt`,
@@ -489,9 +491,9 @@ on an empty container has the same precondition as the native method.
 Both ordered and unordered sets provide Python-style removal:
 
 ```cpp
-items = set<str>{"a", "b"}
+items = stset<str>{"a", "b"}
 items.remove("a")
-fast = uoset<str>{"x", "y"}
+fast = set<str>{"x", "y"}
 fast.remove("x")
 ```
 
@@ -848,6 +850,7 @@ inside `solve`.
 Only one separator is allowed, and it cannot be combined with an explicit
 `void solve()` definition. The VS Code grammar highlights the separator in
 red so the global/body boundary remains visible.
+
 
 
 
