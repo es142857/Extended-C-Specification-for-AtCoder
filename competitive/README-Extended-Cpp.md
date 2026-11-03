@@ -224,6 +224,14 @@ S op(a,b){max(a,b)}
 Typed and inferred parameters may be mixed, and `&x`, `&&x`, and default
 arguments retain their declarator syntax.
 
+At global scope, the return type may also be omitted. Such a definition is
+treated as an `auto` function before parameter and return-expression inference:
+
+```cpp
+op(a,b){max(a,b)}
+// auto op(auto a,auto b){return max(a,b);}
+```
+
 An empty lambda capture is always changed to reference capture, and the final
 top-level expression may omit `return`:
 
@@ -823,6 +831,7 @@ print(twice(n))
 Only one separator is allowed, and it cannot be combined with an explicit
 `void solve()` definition. The VS Code grammar highlights the separator in
 red so the global/body boundary remains visible.
+
 
 
 

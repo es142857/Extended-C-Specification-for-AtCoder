@@ -1458,6 +1458,33 @@ def translate_function_parameter_types(source: str, type_names: set[str]) -> str
     return source
 
 
+def translate_function_return_types(source: str) -> str:
+    """Give return-type-less ordinary function definitions an `auto` type."""
+    header = re.compile(
+        r"(?m)^(?P<indent>[ \t]*)(?P<name>[A-Za-z_]\w*)[ \t]*\("
+    )
+    suffix = re.compile(
+        r"^[ \t]*(?:(?:const|noexcept|override|final)[ \t]*)*"
+        r"(?:->[^{}\r\n]+)?[ \t]*\{"
+    )
+    excluded = {
+        "if", "for", "while", "switch", "catch", "rep", "rrep",
+        "range", "rrange", "srange", "rsrange", "subset",
+    }
+    mask = code_mask(source)
+    insertions: list[int] = []
+    for match in header.finditer(source):
+        if not mask[match.start()] or match.group("name") in excluded:
+            continue
+        opening = match.end() - 1
+        closing = find_closing_paren(source, opening, mask)
+        if suffix.match(source[closing + 1 :]):
+            insertions.append(match.start("name"))
+    for position in reversed(insertions):
+        source = source[:position] + "auto " + source[position:]
+    return source
+
+
 def implicit_lambda_return_body(body: str, type_names: set[str]) -> str:
     """Return the final top-level expression, leaving final operations alone."""
     mask = code_mask(body)
@@ -2739,6 +2766,7 @@ def translate(preamble: Path, program: Path) -> str:
     translated_main = translate_string_literals(translated_main)
     translated_main = translate_inferred_for_loops(translated_main)
     translated_main = translate_lambda_parameter_types(translated_main, type_names)
+    translated_main = translate_function_return_types(translated_main)
     translated_main = translate_function_parameter_types(translated_main, type_names)
     translated_main = translate_walrus_expressions(translated_main)
     translated_main = translate_chained_assignments(translated_main)
@@ -2803,6 +2831,7 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
 
 
 
