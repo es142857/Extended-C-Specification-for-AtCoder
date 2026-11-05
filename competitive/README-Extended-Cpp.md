@@ -30,6 +30,10 @@ specification, followed directly by a commented copy of the original
 `main.ecpp`. No generated-source banners or section-marker comments are
 added. The internal member dispatchers are emitted in compact one-line form;
 the generated C++ and its `#line` mappings follow the source comments.
+Every generated statement is mapped back to its physical `main.ecpp` line,
+including statements expanded from semicolon-separated lines, chained
+assignments, and walrus expressions, so compiler diagnostics use ECPP line
+numbers.
 
 ## VS Code highlighting
 
@@ -850,6 +854,7 @@ inside `solve`.
 Only one separator is allowed, and it cannot be combined with an explicit
 `void solve()` definition. The VS Code grammar highlights the separator in
 red so the global/body boundary remains visible.
+
 
 
 

@@ -768,8 +768,14 @@ def translate_walrus_expressions(source: str) -> str:
     """Translate declaring-name and assignable-lvalue walrus expressions."""
     walrus = re.compile(r":=[ \t]*")
     output: list[str] = []
+    logical_line = 1
 
     for line in source.splitlines(keepends=True):
+        directive = re.match(r'^[ \t]*#line[ \t]+(\d+)[ \t]+"main\.ecpp"', line)
+        if directive:
+            logical_line = int(directive.group(1))
+            output.append(line)
+            continue
         if line.endswith("\r\n"):
             body, newline = line[:-2], "\r\n"
         elif line.endswith(("\n", "\r")):
@@ -777,7 +783,7 @@ def translate_walrus_expressions(source: str) -> str:
         else:
             body, newline = line, ""
 
-        assignments: list[tuple[str, str, bool]] = []
+        assignments: list[tuple[str, str, bool, bool]] = []
         while True:
             mask = code_mask(body)
             matches = [match for match in walrus.finditer(body) if mask[match.start()]]
@@ -813,7 +819,8 @@ def translate_walrus_expressions(source: str) -> str:
                 inline_input = re.fullmatch(
                     r"input[ \t]*\([ \t]*\)", expression
                 ) is not None
-                assignments.append((target, expression, inline_input))
+                loop_end = leading_loop_prefix_end(body)
+                assignments.append((target, expression, inline_input, start >= loop_end > 0))
                 replacement = (
                     f"({target} = str({expression}))" if inline_input else target
                 )
@@ -823,12 +830,51 @@ def translate_walrus_expressions(source: str) -> str:
 
         if assignments:
             indent = re.match(r"[ \t]*", body).group()
-            for name, expression, inline_input in assignments:
+            for name, expression, inline_input, local in assignments:
+                if local:
+                    continue
                 declaration = f"str {name}" if inline_input else f"{name} = {expression}"
-                output.append(f"{indent}{declaration}{newline or chr(10)}")
+                output.append(
+                    f'#line {logical_line} "main.ecpp"\n'
+                    f"{indent}{declaration}{newline or chr(10)}"
+                )
+            local_assignments = [assignment for assignment in assignments if assignment[3]]
+            if local_assignments:
+                loop_end = leading_loop_prefix_end(body)
+                declarations = "".join(
+                    f"{'str ' if inline_input else 'auto '}{name}"
+                    f"{'' if inline_input else f'={expression}'};"
+                    for name, expression, inline_input, _ in local_assignments
+                )
+                body = body[:loop_end] + "{" + declarations + body[loop_end:] + ";}"
+            output.append(f'#line {logical_line} "main.ecpp"\n')
         output.append(body + newline)
+        logical_line += 1
 
     return "".join(output)
+
+
+def leading_loop_prefix_end(source: str) -> int:
+    """Return the end of chained loop headers at the start of a statement."""
+    mask = code_mask(source)
+    position = len(source) - len(source.lstrip(" \t"))
+    loop_names = {"for", "rep", "rrep", "range", "rrange", "srange", "rsrange", "subset"}
+    found = False
+    while position < len(source):
+        match = re.match(r"[A-Za-z_]\w*", source[position:])
+        if not match or match.group() not in loop_names:
+            break
+        opening = position + match.end()
+        while opening < len(source) and source[opening] in " \t":
+            opening += 1
+        if opening >= len(source) or source[opening] != "(" or not mask[opening]:
+            break
+        closing = find_closing_paren(source, opening, mask)
+        position = closing + 1
+        while position < len(source) and source[position] in " \t":
+            position += 1
+        found = True
+    return position if found else 0
 
 
 def translate_chained_assignments(source: str) -> str:
@@ -841,8 +887,15 @@ def translate_chained_assignments(source: str) -> str:
     )
     output: list[str] = []
     offset = 0
+    logical_line = 1
 
     for line in source.splitlines(keepends=True):
+        directive = re.match(r'^[ \t]*#line[ \t]+(\d+)[ \t]+"main\.ecpp"', line)
+        if directive:
+            logical_line = int(directive.group(1))
+            output.append(line)
+            offset += len(line)
+            continue
         if line.endswith("\r\n"):
             body, newline = line[:-2], "\r\n"
         elif line.endswith(("\n", "\r")):
@@ -928,11 +981,13 @@ def translate_chained_assignments(source: str) -> str:
         for generated_index, assignment in enumerate(generated):
             is_last = generated_index == len(generated) - 1
             suffix = ";"
+            output.append(f'#line {logical_line} "main.ecpp"\n')
             if is_last:
                 output.append(assignment + suffix + trailing + comment + newline)
             else:
                 output.append(assignment + suffix + (newline or "\n"))
         offset += len(line)
+        logical_line += 1
 
     return "".join(output)
 
@@ -942,8 +997,15 @@ def split_top_level_statements(source: str) -> str:
     mask = code_mask(source)
     output: list[str] = []
     offset = 0
+    logical_line = 1
 
     for line in source.splitlines(keepends=True):
+        directive = re.match(r'^[ \t]*#line[ \t]+(\d+)[ \t]+"main\.ecpp"', line)
+        if directive:
+            logical_line = int(directive.group(1))
+            output.append(line)
+            offset += len(line)
+            continue
         if line.endswith("\r\n"):
             body, newline = line[:-2], "\r\n"
         elif line.endswith(("\n", "\r")):
@@ -977,8 +1039,10 @@ def split_top_level_statements(source: str) -> str:
         if not separators or (
             len(separators) == 1 and separators[-1] == len(body) - 1
         ):
+            output.append(f'#line {logical_line} "main.ecpp"\n')
             output.append(line)
             offset += len(line)
+            logical_line += 1
             continue
 
         indent = re.match(r"[ \t]*", body).group()
@@ -986,12 +1050,15 @@ def split_top_level_statements(source: str) -> str:
         for separator in separators:
             statement = body[start : separator + 1].strip()
             if statement:
+                output.append(f'#line {logical_line} "main.ecpp"\n')
                 output.append(indent + statement + (newline or "\n"))
             start = separator + 1
         remainder = body[start:].strip()
         if remainder:
+            output.append(f'#line {logical_line} "main.ecpp"\n')
             output.append(indent + remainder + newline)
         offset += len(line)
+        logical_line += 1
 
     return "".join(output)
 
@@ -2922,6 +2989,7 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
 
 
 
