@@ -2910,6 +2910,42 @@ def minify_generated_cpp(source: str) -> str:
     return "\n".join(output) + ("\n" if source.endswith(("\n", "\r")) else "")
 
 
+def specialize_local_mode(source: str, judge: bool | None) -> str:
+    """Fold LOCAL/ONLINE_JUDGE branches when the output mode is known."""
+    if judge is None:
+        return source
+    startup = re.compile(
+        r"\A#ifndef ONLINE_JUDGE\s*\n#define LOCAL\s*\n"
+        r"constexpr bool local=true;\s*\n#else\s*\n"
+        r"(?P<submit>(?:#pragma[^\n]*\n)+)"
+        r"constexpr bool local=false;\s*\n#endif\s*\n"
+    )
+    match = startup.match(source)
+    if not match:
+        raise TranslationError("could not specialize LOCAL startup block")
+    source = ("" if judge else match.group("submit")) + source[match.end() :]
+    conditional = re.compile(
+        r"(?ms)^#ifdef LOCAL[ \t]*\r?\n(?P<judge>.*?)"
+        r"^#else[ \t]*\r?\n(?P<submit>.*?)^#endif[ \t]*(?:\r?\n|$)"
+    )
+    source, count = conditional.subn(
+        lambda item: item.group("judge" if judge else "submit"), source
+    )
+    if count != 1:
+        raise TranslationError("could not specialize LOCAL main block")
+    if judge:
+        source = source.replace("if constexpr(!local)return;", "")
+    else:
+        source = re.sub(
+            r"template<class T,class\.\.\.Ts>void debug_\([^{}]*\)\{[^{}]*\}"
+            r"template<class T,class\.\.\.Ts>void debug\([^{}]*\)\{[^{}]*\}",
+            "template<class...T>void debug_(T&&...){}template<class...T>void debug(T&&...){}",
+            source,
+            count=1,
+        )
+    return source
+
+
 def original_source_comment(source: str) -> str:
     """Render only the specification link and original source comments."""
     normalized = source.replace("\r\n", "\n").replace("\r", "\n")
@@ -2933,12 +2969,15 @@ def translate(
     *,
     include_source_comment: bool = True,
     include_line_directives: bool = True,
+    judge_mode: bool | None = None,
 ) -> str:
     sources = {
         "preamble.ecpp": preamble.read_text(encoding="utf-8"),
         "main.ecpp": program.read_text(encoding="utf-8"),
     }
-    record_preamble = translate_record_aliases(sources["preamble.ecpp"])
+    record_preamble = translate_record_aliases(
+        specialize_local_mode(sources["preamble.ecpp"], judge_mode)
+    )
     record_main = translate_container_type_names(
         translate_record_aliases(
             translate_global_type_aliases(translate_solve_separator(sources["main.ecpp"]))
@@ -3031,6 +3070,7 @@ def main() -> int:
             args.program,
             include_source_comment=not args.judge,
             include_line_directives=not args.submit,
+            judge_mode=True if args.judge else False if args.submit else None,
         )
         args.output.write_text(output, encoding="utf-8")
     except (OSError, TranslationError) as error:
@@ -3042,6 +3082,7 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
 
 
 

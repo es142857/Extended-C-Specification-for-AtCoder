@@ -35,6 +35,10 @@ No generated-source banners or section-marker comments are added. The internal
 extension implementations, member dispatchers, and adjacent ordinary C++ are
 joined into compact lines. Preprocessor directives, source comments, and local
 diagnostic mappings retain the line boundaries required by C++.
+The output mode is known during transpilation, so the `LOCAL`/
+`ONLINE_JUDGE` branches are folded completely: local output contains only the
+test harness, submission output contains only `solve()`, and no generated file
+contains `constexpr bool local`.
 Every generated statement is mapped back to its physical `main.ecpp` line,
 including statements expanded from semicolon-separated lines, chained
 assignments, and walrus expressions, so compiler diagnostics use ECPP line
@@ -859,6 +863,7 @@ inside `solve`.
 Only one separator is allowed, and it cannot be combined with an explicit
 `void solve()` definition. The VS Code grammar highlights the separator in
 red so the global/body boundary remains visible.
+
 
 
 
