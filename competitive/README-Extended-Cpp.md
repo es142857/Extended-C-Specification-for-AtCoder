@@ -42,12 +42,11 @@ contains `constexpr bool local`.
 
 ECPP shorthands formerly implemented as macros are expanded by the transpiler:
 `min`, `max`, `kill`, `stf`, `elif`, `finish`, every `rep`/`range` variant,
-`subset`, `Seg`, and `LazySeg`. Loop bounds and steps, including the hidden
+`subset`, `Seg`, `LazySeg`, and `all`. Loop bounds and steps, including the hidden
 bound of `rep(count)`, are stored once before iteration. `stf(expression)` also
-captures its callable after evaluating the expression once. Only `all(x)`
-remains a macro, because it must splice one expression into two iterator
-arguments; duplicating an arbitrary expression would violate single
-evaluation.
+captures its callable after evaluating the expression once. `all(expression)`
+wraps its containing function call in an immediate lambda, evaluates the range
+expression once, and passes the saved range's `begin()` and `end()` iterators.
 Every generated statement is mapped back to its physical `main.ecpp` line,
 including statements expanded from semicolon-separated lines, chained
 assignments, and walrus expressions, so compiler diagnostics use ECPP line
@@ -872,6 +871,7 @@ inside `solve`.
 Only one separator is allowed, and it cannot be combined with an explicit
 `void solve()` definition. The VS Code grammar highlights the separator in
 red so the global/body boundary remains visible.
+
 
 
 

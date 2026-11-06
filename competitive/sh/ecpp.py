@@ -1343,10 +1343,70 @@ def translate_nonloop_macros(source: str) -> str:
     return source
 
 
+def translate_all_calls(source: str) -> str:
+    """Expand `all(expr)` inside a call while evaluating expr exactly once."""
+    counter = 1
+    pattern = re.compile(r"(?<![\w.:>])all[ \t]*\(")
+    while True:
+        mask = code_mask(source)
+        matches = [match for match in pattern.finditer(source) if mask[match.start()]]
+        if not matches:
+            return source
+        match = matches[-1]
+        all_open = match.end() - 1
+        all_close = find_closing_paren(source, all_open, mask)
+        stack: list[int] = []
+        candidates: list[int] = []
+        for index in range(match.start()):
+            if not mask[index]:
+                continue
+            if source[index] == "(":
+                stack.append(index)
+            elif source[index] == ")" and stack:
+                stack.pop()
+        for opening in reversed(stack):
+            before = opening - 1
+            while before >= 0 and source[before] in " \t":
+                before -= 1
+            if before >= 0 and (
+                source[before].isalnum() or source[before] in "_)]>"
+            ):
+                candidates.append(opening)
+                break
+        if not candidates:
+            raise TranslationError("all(expr) must be used inside a function call")
+        call_open = candidates[0]
+        call_close = find_closing_paren(source, call_open, mask)
+        if all_close > call_close:
+            raise TranslationError("could not determine the call containing all(expr)")
+        call_start = receiver_start(source, call_open, mask)
+        expression = source[all_open + 1 : all_close].strip()
+        if not expression:
+            raise TranslationError("all() requires a range expression")
+        while f"__ecpp_all{counter}" in source:
+            counter += 1
+        hidden = f"__ecpp_all{counter}"
+        counter += 1
+        call = source[call_start : call_close + 1]
+        relative_start = match.start() - call_start
+        relative_end = all_close + 1 - call_start
+        expanded = (
+            call[:relative_start]
+            + f"{hidden}.begin(),{hidden}.end()"
+            + call[relative_end:]
+        )
+        replacement = (
+            f"([&](auto&& {hidden})->decltype(auto){{return {expanded};}})"
+            f"(({expression}))"
+        )
+        source = source[:call_start] + replacement + source[call_close + 1 :]
+
+
 def translate_macro_syntax(source: str) -> str:
     source = translate_rep_shorthand(source)
     source = translate_loop_macros(source)
-    return translate_nonloop_macros(source)
+    source = translate_nonloop_macros(source)
+    return translate_all_calls(source)
 
 
 def translate_sort_calls(source: str) -> str:
@@ -3214,6 +3274,7 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
 
 
 
