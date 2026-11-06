@@ -2897,7 +2897,13 @@ def original_source_comment(source: str) -> str:
     )
 
 
-def translate(preamble: Path, program: Path) -> str:
+def translate(
+    preamble: Path,
+    program: Path,
+    *,
+    include_source_comment: bool = True,
+    include_line_directives: bool = True,
+) -> str:
     sources = {
         "preamble.ecpp": preamble.read_text(encoding="utf-8"),
         "main.ecpp": program.read_text(encoding="utf-8"),
@@ -2958,8 +2964,8 @@ def translate(preamble: Path, program: Path) -> str:
         "main.ecpp": wrap_solve_if_missing(main_body),
     }
 
-    return (
-        original_source_comment(sources["main.ecpp"])
+    result = (
+        (original_source_comment(sources["main.ecpp"]) if include_source_comment else "")
         + '#line 1 "preamble.ecpp"\n'
         + translated["preamble.ecpp"].rstrip()
         + "\n"
@@ -2969,6 +2975,9 @@ def translate(preamble: Path, program: Path) -> str:
         + translated["main.ecpp"].rstrip()
         + "\n"
     )
+    if not include_line_directives:
+        result = re.sub(r'(?m)^[ \t]*#line[^\r\n]*(?:\r?\n|$)', "", result)
+    return result
 
 
 def main() -> int:
@@ -2976,9 +2985,17 @@ def main() -> int:
     parser.add_argument("preamble", type=Path)
     parser.add_argument("program", type=Path)
     parser.add_argument("output", type=Path)
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--judge", action="store_true")
+    mode.add_argument("--submit", action="store_true")
     args = parser.parse_args()
     try:
-        output = translate(args.preamble, args.program)
+        output = translate(
+            args.preamble,
+            args.program,
+            include_source_comment=not args.judge,
+            include_line_directives=not args.submit,
+        )
         args.output.write_text(output, encoding="utf-8")
     except (OSError, TranslationError) as error:
         print(f"ecpp: error: {error}", file=sys.stderr)
@@ -2989,6 +3006,7 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
 
 
 

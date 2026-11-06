@@ -1,4 +1,3 @@
-// https://github.com/es142857/Extended-C-Specification-for-AtCoder
 #line 1 "preamble.ecpp"
 #ifndef ONLINE_JUDGE
 #define LOCAL
