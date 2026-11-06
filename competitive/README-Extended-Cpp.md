@@ -39,6 +39,15 @@ The output mode is known during transpilation, so the `LOCAL`/
 `ONLINE_JUDGE` branches are folded completely: local output contains only the
 test harness, submission output contains only `solve()`, and no generated file
 contains `constexpr bool local`.
+
+ECPP shorthands formerly implemented as macros are expanded by the transpiler:
+`min`, `max`, `kill`, `stf`, `elif`, `finish`, every `rep`/`range` variant,
+`subset`, `Seg`, and `LazySeg`. Loop bounds and steps, including the hidden
+bound of `rep(count)`, are stored once before iteration. `stf(expression)` also
+captures its callable after evaluating the expression once. Only `all(x)`
+remains a macro, because it must splice one expression into two iterator
+arguments; duplicating an arbitrary expression would violate single
+evaluation.
 Every generated statement is mapped back to its physical `main.ecpp` line,
 including statements expanded from semicolon-separated lines, chained
 assignments, and walrus expressions, so compiler diagnostics use ECPP line
@@ -863,6 +872,7 @@ inside `solve`.
 Only one separator is allowed, and it cannot be combined with an explicit
 `void solve()` definition. The VS Code grammar highlights the separator in
 red so the global/body boundary remains visible.
+
 
 
 

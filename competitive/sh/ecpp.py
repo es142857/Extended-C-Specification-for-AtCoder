@@ -1218,6 +1218,137 @@ def translate_rep_shorthand(source: str) -> str:
     return source
 
 
+def translate_loop_macros(source: str) -> str:
+    """Expand loop shorthands with every bound evaluated exactly once."""
+    call = re.compile(
+        r"(?<![\w.:>])(?P<name>rep|range|rrep|srange|rrange|rsrange|subset)"
+        r"[ \t]*\("
+    )
+    mask = code_mask(source)
+    replacements: list[tuple[int, int, str]] = []
+    counter = 1
+    arities = {"rep": 2, "range": 3, "rrep": 2, "srange": 4,
+               "rrange": 3, "rsrange": 4, "subset": 2}
+    for match in call.finditer(source):
+        if not mask[match.start()]:
+            continue
+        opening = match.end() - 1
+        closing = find_closing_paren(source, opening, mask)
+        arguments = [part.strip() for part in split_top_level_commas(
+            source[opening + 1 : closing]
+        )]
+        name = match.group("name")
+        if len(arguments) != arities[name] or not all(arguments):
+            continue
+        variable, *values = arguments
+        if not re.fullmatch(r"[A-Za-z_]\w*", variable):
+            continue
+        while f"__ecpp_loop{counter}_" in source:
+            counter += 1
+        prefix = f"__ecpp_loop{counter}_"
+        counter += 1
+        if name == "rep":
+            replacement = (
+                f"for(int {variable}=0,{prefix}end=({values[0]});"
+                f"{variable}<{prefix}end;++{variable})"
+            )
+        elif name == "range":
+            replacement = (
+                f"for(int {variable}=({values[0]}),{prefix}end=({values[1]});"
+                f"{variable}<{prefix}end;++{variable})"
+            )
+        elif name == "rrep":
+            replacement = f"for(int {variable}=({values[0]})-1;{variable}>=0;--{variable})"
+        elif name == "rrange":
+            replacement = (
+                f"for(int {prefix}begin=({values[0]}),{variable}=({values[1]})-1;"
+                f"{variable}>={prefix}begin;--{variable})"
+            )
+        elif name == "srange":
+            replacement = (
+                f"for(int {variable}=({values[0]}),{prefix}end=({values[1]}),"
+                f"{prefix}step=({values[2]});{variable}<{prefix}end;"
+                f"{variable}+={prefix}step)"
+            )
+        elif name == "rsrange":
+            replacement = (
+                f"for(int {prefix}begin=({values[0]}),{variable}=({values[1]})-1,"
+                f"{prefix}step=({values[2]});{variable}>={prefix}begin;"
+                f"{variable}-={prefix}step)"
+            )
+        else:
+            replacement = (
+                f"for(int {prefix}mask=({values[0]}),{variable}={prefix}mask;"
+                f"{variable}>=0;{variable}={variable}?"
+                f"({variable}-1)&{prefix}mask:-1)"
+            )
+        replacements.append((match.start(), closing + 1, replacement))
+    for start, end, replacement in reversed(replacements):
+        source = source[:start] + replacement + source[end:]
+    return source
+
+
+def translate_nonloop_macros(source: str) -> str:
+    """Expand expression and statement shorthands formerly implemented as macros."""
+    mask = code_mask(source)
+    replacements: list[tuple[int, int, str]] = []
+    tokens = {
+        "elif": "else if",
+        "kill": '{debug("killed");assert(0);}',
+        "Seg": "segtree_<S,[](S a,S b){return op(a,b);}>",
+        "LazySeg": (
+            "lazysegtree_<S,[](S a,S b){return op(a,b);},F,"
+            "[](F f,S x){return mapping(f,x);},"
+            "[](F f,F g){return composition(f,g);}>"
+        ),
+    }
+    token_pattern = re.compile(r"\b(?:elif|kill|Seg|LazySeg)\b")
+    for match in token_pattern.finditer(source):
+        if mask[match.start()]:
+            replacements.append((match.start(), match.end(), tokens[match.group()]))
+    call_pattern = re.compile(r"(?<![\w.:>])(?P<name>min|max)[ \t]*\(")
+    for match in call_pattern.finditer(source):
+        if mask[match.start()]:
+            replacements.append(
+                (match.start(), match.end() - 1, f"my_{match.group('name')}")
+            )
+    for start, end, replacement in sorted(replacements, reverse=True):
+        source = source[:start] + replacement + source[end:]
+
+    mask = code_mask(source)
+    replacements = []
+    call_pattern = re.compile(r"(?<![\w.:>])(?P<name>finish|stf)[ \t]*\(")
+    counter = 1
+    for match in call_pattern.finditer(source):
+        if not mask[match.start()]:
+            continue
+        opening = match.end() - 1
+        closing = find_closing_paren(source, opening, mask)
+        name = match.group("name")
+        argument = source[opening + 1 : closing].strip()
+        if not argument:
+            continue
+        if name == "finish":
+            replacement = f"{{print(({argument}));return;}}"
+        else:
+            hidden = f"__ecpp_stf{counter}"
+            counter += 1
+            replacement = (
+                f"[&,{hidden}=({argument})](auto&& y)->decltype(auto)"
+                f"{{return {hidden}(std::forward<decltype(y)>(y));}}"
+            )
+        replacements.append((match.start(), closing + 1, replacement))
+    for start, end, replacement in sorted(replacements, reverse=True):
+        source = source[:start] + replacement + source[end:]
+    return source
+
+
+def translate_macro_syntax(source: str) -> str:
+    source = translate_rep_shorthand(source)
+    source = translate_loop_macros(source)
+    return translate_nonloop_macros(source)
+
+
 def translate_sort_calls(source: str) -> str:
     """Allow one range argument or a range followed by a comparator for sort."""
     call = re.compile(r"(?<![\w.:>])sort[ \t]*\(")
@@ -2985,6 +3116,7 @@ def translate(
     )
     translated_preamble, extension_names = translate_declarations(record_preamble)
     translated_main, main_extension_names = translate_declarations(record_main)
+    translated_preamble = translate_macro_syntax(translated_preamble)
     if main_extension_names:
         names = ", ".join(sorted(main_extension_names))
         raise TranslationError(
@@ -3005,7 +3137,7 @@ def translate(
     translated_main = translate_chained_assignments(translated_main)
     translated_main = translate_slice_expressions(translated_main)
     translated_main = translate_pair_member_aliases(translated_main)
-    translated_main = translate_rep_shorthand(translated_main)
+    translated_main = translate_macro_syntax(translated_main)
     translated_main = translate_sort_calls(translated_main)
     translated_main = translate_reverse_calls(translated_main)
     translated_main = translate_bound_calls(translated_main)
@@ -3082,6 +3214,7 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
 
 
 
