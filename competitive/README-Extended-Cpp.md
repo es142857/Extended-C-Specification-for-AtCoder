@@ -39,6 +39,9 @@ The output mode is known during transpilation, so the `LOCAL`/
 `ONLINE_JUDGE` branches are folded completely: local output contains only the
 test harness, submission output contains only `solve()`, and no generated file
 contains `constexpr bool local`.
+Submission-only GCC optimization pragmas are emitted as two `_Pragma`
+operators on one physical line; the two required `#include` directives remain
+separate preprocessor lines.
 
 ECPP shorthands formerly implemented as macros are expanded by the transpiler:
 `min`, `max`, `kill`, `stf`, `elif`, `finish`, every `rep`/`range` variant,
@@ -871,6 +874,7 @@ inside `solve`.
 Only one separator is allowed, and it cannot be combined with an explicit
 `void solve()` definition. The VS Code grammar highlights the separator in
 red so the global/body boundary remains visible.
+
 
 
 

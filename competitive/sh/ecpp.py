@@ -3114,7 +3114,11 @@ def specialize_local_mode(source: str, judge: bool | None) -> str:
     match = startup.match(source)
     if not match:
         raise TranslationError("could not specialize LOCAL startup block")
-    source = ("" if judge else match.group("submit")) + source[match.end() :]
+    submit_pragmas = (
+        '_Pragma("GCC optimize(\\"Ofast,unroll-loops\\")") '
+        '_Pragma("GCC target(\\"tune=native\\")")\n'
+    )
+    source = ("" if judge else submit_pragmas) + source[match.end() :]
     conditional = re.compile(
         r"(?ms)^#ifdef LOCAL[ \t]*\r?\n(?P<judge>.*?)"
         r"^#else[ \t]*\r?\n(?P<submit>.*?)^#endif[ \t]*(?:\r?\n|$)"
@@ -3274,6 +3278,7 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
 
 
 
