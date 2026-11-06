@@ -24,14 +24,14 @@ trap cleanup EXIT
 
 sleep 0.1
 python3 sh/copier.py copier.txt in.txt expected_out.txt
-python3 sh/ecpp.py --judge preamble.ecpp main.ecpp main_judge.cpp >/dev/null
+python3 sh/ecpp.py --judge preamble.ecpp main.ecpp main.cpp >/dev/null
 
 if [[ "$MODE" == "translate" ]]; then
     exit 0
 fi
 
 link_flags=()
-if grep -q 'gmpxx.h' main_judge.cpp; then
+if grep -q 'gmpxx.h' main.cpp; then
     link_flags=(-lgmpxx -lgmp)
 fi
 
@@ -48,7 +48,7 @@ printf "Compiling"
 spinner_pid=$!
 
 set +e
-g++ -std=gnu++23 -O2 -I "$ROOT/ac-library" main_judge.cpp "${link_flags[@]}" -o a.out
+g++ -std=gnu++23 -O2 -I "$ROOT/ac-library" main.cpp "${link_flags[@]}" -o a.out
 compile_status=$?
 set -e
 cleanup_spinner
@@ -89,4 +89,5 @@ if [[ -f judge.py ]]; then
         "$ROOT/sh/cp.sh"
     fi
 fi
+
 

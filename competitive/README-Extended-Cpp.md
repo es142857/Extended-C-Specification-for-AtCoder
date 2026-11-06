@@ -3,17 +3,17 @@
 `main.ecpp` is the only file normally edited. Running `bo` performs:
 
 1. combined input/output data in `copier.txt` -> `in.txt` and `expected_out.txt`
-2. `preamble.ecpp` + `main.ecpp` -> `main_judge.cpp`
-3. `main_judge.cpp` -> `a.out`
+2. `preamble.ecpp` + `main.ecpp` -> `main.cpp`
+3. `main.cpp` -> `a.out`
 4. `a.out < in.txt` -> `out.txt`
 5. `judge.py` -> the original `[AC]` / `[WA]` result UI
-6. on a full `[AC]`, `cp` -> generate and copy `main_submit.cpp`
+6. on a full `[AC]`, `cp` -> generate and copy temporary submission C++
 
 ## Commands
 
 - `bo`: translate, build, run, and judge
 - `init`: clear contest working files while keeping templates and tooling
-- `cp`: generate submission-only `main_submit.cpp` and copy it to the clipboard
+- `cp`: generate `main_temporary.cpp`, copy it, and immediately delete it
 
 Common container aliases include `vec<T>` for `vector<T>`. ECPP uses hash
 containers by default: `map<K,V>` and `set<T>` become `unordered_map<K,V>`
@@ -23,13 +23,14 @@ rewrite does not affect the functional `map(function, values)` form.
 
 `bo` always removes `a.out` when it finishes, including failed builds and
 runtime errors. `init` clears `copier.txt`, `in.txt`, `expected_out.txt`,
-`out.txt`, `main.ecpp`, `main_judge.cpp`, `main_submit.cpp`, and `generator.py`.
+`out.txt`, `main.ecpp`, `main.cpp`, `main_temporary.cpp`, and `generator.py`.
 
-`main_judge.cpp` omits the source comments and retains `#line` mappings for
-local compiler diagnostics. `main_submit.cpp` starts with one comment linking
-to the Extended C++ specification, followed directly by a commented copy of
-the original `main.ecpp`, but contains no `#line` directives. It is written
-only by `cp`, either explicitly or after every local testcase receives `[AC]`.
+`main.cpp` omits the source comments and retains `#line` mappings for local
+compiler diagnostics. Temporary `main_temporary.cpp` starts with one comment
+linking to the Extended C++ specification, followed directly by a commented
+copy of the original `main.ecpp`, but contains no `#line` directives. It is written
+only by `cp`, either explicitly or after every local testcase receives `[AC]`,
+and is deleted as soon as `cp` finishes, including when `cp` fails.
 No generated-source banners or section-marker comments are added. The internal
 member dispatchers are emitted in compact one-line form.
 Every generated statement is mapped back to its physical `main.ecpp` line,
@@ -856,6 +857,7 @@ inside `solve`.
 Only one separator is allowed, and it cannot be combined with an explicit
 `void solve()` definition. The VS Code grammar highlights the separator in
 red so the global/body boundary remains visible.
+
 
 
 
