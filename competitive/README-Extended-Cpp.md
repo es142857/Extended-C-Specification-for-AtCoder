@@ -12,7 +12,8 @@
 ## Commands
 
 - `bo`: translate, build, run, and judge
-- `init`: clear contest working files while keeping templates and tooling
+- `init`: clear contest working files, then clear the terminal without a
+  completion message
 - `cp`: generate `main_temporary.cpp`, copy it, and immediately delete it
 
 Common container aliases include `vec<T>` for `vector<T>`. ECPP uses hash
@@ -874,6 +875,7 @@ inside `solve`.
 Only one separator is allowed, and it cannot be combined with an explicit
 `void solve()` definition. The VS Code grammar highlights the separator in
 red so the global/body boundary remains visible.
+
 
 
 
