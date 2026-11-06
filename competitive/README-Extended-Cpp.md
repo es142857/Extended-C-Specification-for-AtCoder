@@ -32,7 +32,9 @@ copy of the original `main.ecpp`, but contains no `#line` directives. It is writ
 only by `cp`, either explicitly or after every local testcase receives `[AC]`,
 and is deleted as soon as `cp` finishes, including when `cp` fails.
 No generated-source banners or section-marker comments are added. The internal
-member dispatchers are emitted in compact one-line form.
+extension implementations, member dispatchers, and adjacent ordinary C++ are
+joined into compact lines. Preprocessor directives, source comments, and local
+diagnostic mappings retain the line boundaries required by C++.
 Every generated statement is mapped back to its physical `main.ecpp` line,
 including statements expanded from semicolon-separated lines, chained
 assignments, and walrus expressions, so compiler diagnostics use ECPP line
@@ -857,6 +859,7 @@ inside `solve`.
 Only one separator is allowed, and it cannot be combined with an explicit
 `void solve()` definition. The VS Code grammar highlights the separator in
 red so the global/body boundary remains visible.
+
 
 
 

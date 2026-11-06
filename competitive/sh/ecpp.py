@@ -2880,6 +2880,36 @@ def make_dispatchers(names: set[str]) -> str:
     return "\n".join(dispatchers)
 
 
+def minify_generated_cpp(source: str) -> str:
+    """Join ordinary generated C++ lines while preserving directive boundaries."""
+    output: list[str] = []
+    pending: list[str] = []
+    continued_directive = False
+
+    def flush() -> None:
+        if pending:
+            output.append(" ".join(pending))
+            pending.clear()
+
+    for line in source.splitlines():
+        stripped = line.strip()
+        comments = comment_mask(line)
+        has_line_comment = any(
+            line.startswith("//", index) and comments[index]
+            for index in range(max(0, len(line) - 1))
+        )
+        directive = stripped.startswith("#") or continued_directive
+        if directive or stripped.startswith("//") or has_line_comment:
+            flush()
+            output.append(line.rstrip())
+            continued_directive = directive and line.rstrip().endswith("\\")
+        elif stripped:
+            pending.append(stripped)
+            continued_directive = False
+    flush()
+    return "\n".join(output) + ("\n" if source.endswith(("\n", "\r")) else "")
+
+
 def original_source_comment(source: str) -> str:
     """Render only the specification link and original source comments."""
     normalized = source.replace("\r\n", "\n").replace("\r", "\n")
@@ -2964,9 +2994,13 @@ def translate(
         "main.ecpp": wrap_solve_if_missing(main_body),
     }
 
-    result = (
-        (original_source_comment(sources["main.ecpp"]) if include_source_comment else "")
-        + '#line 1 "preamble.ecpp"\n'
+    source_comment = (
+        original_source_comment(sources["main.ecpp"])
+        if include_source_comment
+        else ""
+    )
+    generated = (
+        '#line 1 "preamble.ecpp"\n'
         + translated["preamble.ecpp"].rstrip()
         + "\n"
         + make_dispatchers(extension_names)
@@ -2976,8 +3010,10 @@ def translate(
         + "\n"
     )
     if not include_line_directives:
-        result = re.sub(r'(?m)^[ \t]*#line[^\r\n]*(?:\r?\n|$)', "", result)
-    return result
+        generated = re.sub(
+            r'(?m)^[ \t]*#line[^\r\n]*(?:\r?\n|$)', "", generated
+        )
+    return source_comment + minify_generated_cpp(generated)
 
 
 def main() -> int:
@@ -3006,6 +3042,7 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
 
 
 
