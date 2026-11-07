@@ -59,6 +59,11 @@ removing it would merge or change tokens. Long translator-only `__ecpp_*`
 identifiers are rewritten to short reserved identifiers after translation;
 user identifiers and public ACL/ECPP API names are never renamed.
 
+The embedded ACL uses one outer `atcoder` namespace instead of reopening it
+for every header. Its non-public `internal` namespace and collision-free local
+variables, parameters, and private members are shortened as well. Public ACL
+types, functions, methods, and data members retain their documented names.
+
 ECPP shorthands formerly implemented as macros are expanded by the transpiler:
 `min`, `max`, `kill`, `stf`, `elif`, `finish`, every `rep`/`range` variant,
 `subset`, `Seg`, `LazySeg`, and `all`. Loop bounds and steps, including the hidden
@@ -910,6 +915,7 @@ inside `solve`.
 Only one separator is allowed, and it cannot be combined with an explicit
 `void solve()` definition. The VS Code grammar highlights the separator in
 red so the global/body boundary remains visible.
+
 
 
 
