@@ -183,10 +183,15 @@ def extract_embedded_acl(source: str) -> tuple[str, str | None]:
     match = block.search(source)
     if not match:
         return source, None
-    return source[: match.start()] + source[match.end() :], match.group("code").strip()
+    return (
+        source[: match.start()] + "//__ACL_SLOT__\n" + source[match.end() :],
+        match.group("code").strip(),
+    )
 
 
 def inject_embedded_acl(source: str, acl: str) -> str:
+    if "//__ACL_SLOT__" in source:
+        return source.replace("//__ACL_SLOT__", acl, 1)
     source, count = re.subn(
         r"(?m)^(#include<bits/stdc\+\+\.h>[ \t]*\r?\n)",
         lambda item: item.group(1) + acl + "\n",

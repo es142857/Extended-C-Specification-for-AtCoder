@@ -63,6 +63,11 @@ The embedded ACL uses one outer `atcoder` namespace instead of reopening it
 for every header. Its non-public `internal` namespace and collision-free local
 variables, parameters, and private members are shortened as well. Public ACL
 types, functions, methods, and data members retain their documented names.
+The twelve public ACL modules are minified independently and then emitted as
+one block. Shared aliases replace repeated implementation types (`long long`
+with `ll`, `unsigned long long` with `ull`, and repeated STL template names
+with short internal aliases); the expanded ACL body contains no remaining
+spelled-out `long long` type. Module API names are not shortened.
 
 ECPP shorthands formerly implemented as macros are expanded by the transpiler:
 `min`, `max`, `kill`, `stf`, `elif`, `finish`, every `rep`/`range` variant,
