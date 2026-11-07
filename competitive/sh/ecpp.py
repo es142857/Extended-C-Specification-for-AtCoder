@@ -543,6 +543,40 @@ def translate_pair_member_aliases(source: str) -> str:
     return source
 
 
+def translate_inferred_pairs(source: str) -> str:
+    """Turn two-element braced expressions such as `{a,b}` into `pair{a,b}`."""
+    while True:
+        mask = code_mask(source)
+        stack: list[int] = []
+        candidate: tuple[int, int] | None = None
+        for index, character in enumerate(source):
+            if not mask[index]:
+                continue
+            if character == "{":
+                stack.append(index)
+            elif character == "}" and stack:
+                opening = stack.pop()
+                elements = split_top_level_commas(source[opening + 1 : index])
+                if len(elements) != 2 or any(not part.strip() for part in elements):
+                    continue
+                previous = opening - 1
+                while previous >= 0 and source[previous].isspace():
+                    previous -= 1
+                # An identifier, closing delimiter, or colon before `{` denotes
+                # an explicit initializer/body/range rather than an inferred pair.
+                if previous >= 0 and (
+                    source[previous].isalnum()
+                    or source[previous] in "_)]}>:"
+                ):
+                    continue
+                candidate = (opening, index)
+                break
+        if candidate is None:
+            return source
+        opening, closing = candidate
+        source = source[:opening] + "pair" + source[opening:closing + 1] + source[closing + 1:]
+
+
 def find_closing_bracket(source: str, opening: int, mask: list[bool]) -> int:
     depth = 0
     for index in range(opening, len(source)):
@@ -3201,6 +3235,7 @@ def translate(
     translated_main = translate_chained_assignments(translated_main)
     translated_main = translate_slice_expressions(translated_main)
     translated_main = translate_pair_member_aliases(translated_main)
+    translated_main = translate_inferred_pairs(translated_main)
     translated_main = translate_macro_syntax(translated_main)
     translated_main = translate_sort_calls(translated_main)
     translated_main = translate_reverse_calls(translated_main)
@@ -3278,6 +3313,7 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
 
 
 

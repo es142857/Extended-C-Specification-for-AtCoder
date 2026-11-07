@@ -593,6 +593,16 @@ print(p.f, p.s)  // 1 a
 p.s = "b"
 ```
 
+A two-element braced expression is inferred as a `pair`, including in an
+assignment or function argument. Explicit typed initializers and statement
+blocks are left unchanged:
+
+```cpp
+p = {a, b}                 // p = pair{a, b};
+v = vec(3, {inf, inf})     // v = vector(3, pair{inf, inf});
+chmin(p, {x, y})           // chmin(p, pair{x, y});
+```
+
 ## Vector comprehensions and `iota`
 
 A two-argument `vector<T>` declaration maps a source range into a new vector
@@ -875,6 +885,7 @@ inside `solve`.
 Only one separator is allowed, and it cannot be combined with an explicit
 `void solve()` definition. The VS Code grammar highlights the separator in
 red so the global/body boundary remains visible.
+
 
 
 
