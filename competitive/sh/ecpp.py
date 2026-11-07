@@ -528,6 +528,11 @@ def translate_pair_member_aliases(source: str) -> str:
     for match in alias.finditer(source):
         if not mask[match.start()]:
             continue
+        following = match.end()
+        while following < len(source) and source[following] in " \t":
+            following += 1
+        if following < len(source) and source[following] == "(":
+            continue
         start = receiver_start(source, match.start(), mask)
         receiver = source[start : match.start()].strip()
         if re.fullmatch(
@@ -3313,6 +3318,7 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
 
 
 

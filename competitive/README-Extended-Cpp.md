@@ -865,6 +865,14 @@ n = int(input())
 print(twice(n))
 ```
 
+The preamble provides a factorial table through `fac`, initialized as
+`Fac(1.2e7)` for `mint`. Use `fac.f(n)` for `n!` and `fac.c(n, r)` for
+the binomial coefficient.
+
+```cpp
+print(fac.f(n), fac.c(n, r))
+```
+
 At global scope, an assignment whose right side is a recognized type is an
 inferred type alias. A walrus prefix before a function definition provides
 the same shorthand:
@@ -885,6 +893,7 @@ inside `solve`.
 Only one separator is allowed, and it cannot be combined with an explicit
 `void solve()` definition. The VS Code grammar highlights the separator in
 red so the global/body boundary remains visible.
+
 
 
 
