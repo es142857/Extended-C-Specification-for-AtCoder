@@ -3171,7 +3171,7 @@ def minify_generated_cpp(source: str) -> str:
             pending.append(stripped)
             continued_directive = False
     flush()
-    return "\n".join(output) + ("\n" if source.endswith(("\n", "\r")) else "")
+    return "\n".join(output)
 
 
 def specialize_local_mode(source: str, judge: bool | None) -> str:
@@ -3191,7 +3191,16 @@ def specialize_local_mode(source: str, judge: bool | None) -> str:
         '_Pragma("GCC optimize(\\"Ofast,unroll-loops\\")") '
         '_Pragma("GCC target(\\"tune=native\\")")\n'
     )
-    source = ("" if judge else submit_pragmas) + source[match.end() :]
+    source = source[match.end() :]
+    if not judge:
+        source, count = re.subn(
+            r"\A((?:#include[^\n]*\n)+)",
+            lambda item: item.group(1) + submit_pragmas,
+            source,
+            count=1,
+        )
+        if count != 1:
+            raise TranslationError("could not place submission pragmas")
     conditional = re.compile(
         r"(?ms)^#ifdef LOCAL[ \t]*\r?\n(?P<judge>.*?)"
         r"^#else[ \t]*\r?\n(?P<submit>.*?)^#endif[ \t]*(?:\r?\n|$)"
@@ -3356,6 +3365,7 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
 
 
 

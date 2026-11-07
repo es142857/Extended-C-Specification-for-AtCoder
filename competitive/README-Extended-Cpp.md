@@ -41,8 +41,9 @@ The output mode is known during transpilation, so the `LOCAL`/
 test harness, submission output contains only `solve()`, and no generated file
 contains `constexpr bool local`.
 Submission-only GCC optimization pragmas are emitted as two `_Pragma`
-operators on one physical line; the two required `#include` directives remain
-separate preprocessor lines.
+operators at the start of the compact template-code line; the two required
+`#include` directives remain separate preprocessor lines. Generated C++ ends
+at its final non-whitespace character without a trailing newline.
 
 ECPP shorthands formerly implemented as macros are expanded by the transpiler:
 `min`, `max`, `kill`, `stf`, `elif`, `finish`, every `rep`/`range` variant,
@@ -895,6 +896,7 @@ inside `solve`.
 Only one separator is allowed, and it cannot be combined with an explicit
 `void solve()` definition. The VS Code grammar highlights the separator in
 red so the global/body boundary remains visible.
+
 
 
 

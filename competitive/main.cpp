@@ -6,4 +6,3 @@ template<class T>constexpr T my_min(T a,T b){return std::min(a,b);}template<clas
 void solve() {
 #line 1 "main.ecpp"
 }
-
