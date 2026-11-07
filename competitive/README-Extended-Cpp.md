@@ -41,9 +41,18 @@ The output mode is known during transpilation, so the `LOCAL`/
 test harness, submission output contains only `solve()`, and no generated file
 contains `constexpr bool local`.
 Submission-only GCC optimization pragmas are emitted as two `_Pragma`
-operators at the start of the compact template-code line; the two required
-`#include` directives remain separate preprocessor lines. Generated C++ ends
-at its final non-whitespace character without a trailing newline.
+operators at the start of the compact template-code line; the remaining
+`#include<bits/stdc++.h>` directive stays on its required separate line.
+Generated C++ ends at its final non-whitespace character without a trailing
+newline.
+
+The transpiler recursively embeds the complete bundled `atcoder/all`
+dependency tree into generated C++. ACL include guards, comments, duplicate
+dependencies, and standard-library includes already covered by
+`bits/stdc++.h` are removed; GNU C++23 conditional branches are selected and
+the remaining ACL code is minified with the template. Thus generated C++ has
+only `#include<bits/stdc++.h>` and compiles without an installed ACL or an ACL
+include path.
 
 ECPP shorthands formerly implemented as macros are expanded by the transpiler:
 `min`, `max`, `kill`, `stf`, `elif`, `finish`, every `rep`/`range` variant,
@@ -896,6 +905,7 @@ inside `solve`.
 Only one separator is allowed, and it cannot be combined with an explicit
 `void solve()` definition. The VS Code grammar highlights the separator in
 red so the global/body boundary remains visible.
+
 
 
 

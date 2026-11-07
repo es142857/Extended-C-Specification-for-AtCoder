@@ -98,6 +98,83 @@ def translate_line_continuations(source: str) -> str:
     return "".join(output)
 
 
+def embed_atcoder_library(source: str, library_root: Path) -> str:
+    """Recursively inline the complete bundled `atcoder/all` dependency tree."""
+    include = re.compile(
+        r'^[ \t]*#include[ \t]*["<](atcoder/[a-z_]+(?:\.hpp)?)[">][ \t]*$'
+    )
+    guard = re.compile(r"^[ \t]*#.*\bATCODER_[A-Z0-9_]+_HPP\b")
+    standard_include = re.compile(r"^[ \t]*#include[ \t]*<[^>]+>[ \t]*$")
+    seen: set[Path] = set()
+
+    def specialize(lines: list[str]) -> list[str]:
+        """Select the GNU C++23 ACL branches so no ACL directives remain."""
+        output: list[str] = []
+        stack: list[tuple[bool, bool]] = []
+        active = True
+        for line in lines:
+            directive = line.strip()
+            if directive in {"#ifdef _MSC_VER", "#ifndef _MSC_VER"}:
+                condition = directive.startswith("#ifndef")
+                stack.append((active, condition))
+                active = active and condition
+            elif re.fullmatch(r"#if __cplusplus >= (?:201703|202002)L", directive):
+                stack.append((active, True))
+            elif directive == "#else":
+                if not stack:
+                    raise TranslationError("unmatched #else in bundled ACL")
+                parent, condition = stack[-1]
+                active = parent and not condition
+            elif directive == "#endif":
+                if not stack:
+                    raise TranslationError("unmatched #endif in bundled ACL")
+                parent, _ = stack.pop()
+                active = parent
+            elif active:
+                output.append(line)
+        if stack:
+            raise TranslationError("unterminated conditional in bundled ACL")
+        return output
+
+    def expand(name: str) -> list[str]:
+        path = library_root / name
+        if path in seen:
+            return []
+        if not path.is_file():
+            raise TranslationError(f"bundled ACL header not found: {name}")
+        seen.add(path)
+        result: list[str] = []
+        for line in path.read_text(encoding="utf-8").splitlines():
+            original_line = line
+            line = line.split("//", 1)[0].rstrip()
+            nested = include.fullmatch(line)
+            if nested:
+                result.extend(expand(nested.group(1)))
+            elif (
+                guard.match(original_line)
+                or standard_include.match(line)
+                or line.strip() == "#pragma once"
+                or line.lstrip().startswith("//")
+            ):
+                continue
+            else:
+                result.append(line)
+        return result
+
+    output: list[str] = []
+    replaced = False
+    for line in source.splitlines():
+        match = include.fullmatch(line)
+        if match and match.group(1) == "atcoder/all":
+            output.extend(specialize(expand(match.group(1))))
+            replaced = True
+        else:
+            output.append(line)
+    if not replaced:
+        raise TranslationError("preamble.ecpp must include <atcoder/all>")
+    return "\n".join(output) + "\n"
+
+
 def translate_declarations(source: str) -> tuple[str, set[str]]:
     mask = code_mask(source)
     matches = [
@@ -3315,6 +3392,9 @@ def translate(
         ),
         "main.ecpp": wrap_solve_if_missing(main_body),
     }
+    translated["preamble.ecpp"] = embed_atcoder_library(
+        translated["preamble.ecpp"], preamble.parent / "ac-library"
+    )
 
     source_comment = (
         original_source_comment(sources["main.ecpp"])
@@ -3365,6 +3445,7 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
 
 
 
