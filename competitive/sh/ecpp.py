@@ -175,6 +175,29 @@ def embed_atcoder_library(source: str, library_root: Path) -> str:
     return "\n".join(output) + "\n"
 
 
+def extract_embedded_acl(source: str) -> tuple[str, str | None]:
+    """Remove and return the raw minified ACL block stored in preamble.ecpp."""
+    block = re.compile(
+        r"(?ms)^//__ACL_BEGIN__\r?\n(?P<code>.*?)^//__ACL_END__\r?\n?"
+    )
+    match = block.search(source)
+    if not match:
+        return source, None
+    return source[: match.start()] + source[match.end() :], match.group("code").strip()
+
+
+def inject_embedded_acl(source: str, acl: str) -> str:
+    source, count = re.subn(
+        r"(?m)^(#include<bits/stdc\+\+\.h>[ \t]*\r?\n)",
+        lambda item: item.group(1) + acl + "\n",
+        source,
+        count=1,
+    )
+    if count != 1:
+        raise TranslationError("could not place embedded ACL")
+    return source
+
+
 def translate_declarations(source: str) -> tuple[str, set[str]]:
     mask = code_mask(source)
     matches = [
@@ -232,7 +255,7 @@ def translate_declarations(source: str) -> tuple[str, set[str]]:
             parameters += f", {arguments}"
         replacement = (
             f"{match.group('indent')}{match.group('template') or ''}{return_type} "
-            f"__ecpp_additional_{name}({parameters})"
+            f"__x_{name}({parameters})"
         )
         source = source[: match.start()] + replacement + source[match.end() :]
     return source, names
@@ -418,7 +441,7 @@ def translate_calls(source: str, names: set[str]) -> str:
             elif len(elements) > 2:
                 arguments = f"tuple{{{arguments[1:-1]}}}"
         forwarded_receiver = (
-            "std::forward<decltype(__ecpp_receiver)>(__ecpp_receiver)"
+            "std::forward<decltype(__r)>(__r)"
         )
         if (
             name in {"append", "appendleft"}
@@ -426,7 +449,7 @@ def translate_calls(source: str, names: set[str]) -> str:
             and arguments.endswith("}")
         ):
             arguments = (
-                "typename std::remove_cvref_t<decltype(__ecpp_receiver)>"
+                "typename std::remove_cvref_t<decltype(__r)>"
                 f"::value_type{arguments}"
             )
         call_args = (
@@ -469,49 +492,49 @@ def translate_calls(source: str, names: set[str]) -> str:
             )
             if uses_element_placeholder:
                 fallback = (
-                    "[&](auto&& __ecpp_map_value) -> decltype(auto) { "
+                    "[&](auto&& __v) -> decltype(auto) { "
                     f"auto&& {placeholder_name} = "
-                    "std::forward<decltype(__ecpp_map_value)>("
-                    "__ecpp_map_value); return "
+                    "std::forward<decltype(__v)>("
+                    "__v); return "
                     f"({arguments}); }}"
                 )
             elif zero_argument_lambda:
                 fallback = (
-                    "[&](auto&& __ecpp_map_value) -> decltype(auto) { "
-                    "(void)__ecpp_map_value; return "
+                    "[&](auto&& __v) -> decltype(auto) { "
+                    "(void)__v; return "
                     f"({arguments})(); }}"
                 )
             else:
                 fallback = (
-                    "[&](auto&& __ecpp_map_value) -> decltype(auto) { "
+                    "[&](auto&& __v) -> decltype(auto) { "
                     "if constexpr (requires { "
-                    f"({arguments})(std::forward<decltype(__ecpp_map_value)>("
-                    "__ecpp_map_value)); }) { return "
-                    f"({arguments})(std::forward<decltype(__ecpp_map_value)>("
-                    "__ecpp_map_value)); } else { return "
+                    f"({arguments})(std::forward<decltype(__v)>("
+                    "__v)); }) { return "
+                    f"({arguments})(std::forward<decltype(__v)>("
+                    "__v)); } else { return "
                     f"({arguments}); }} }}"
                 )
             if uses_element_placeholder:
                 replacement = (
-                    "([&](auto&& __ecpp_receiver) -> decltype(auto) { return "
-                    f"__ecpp_dispatch_{name}("
+                    "([&](auto&& __r) -> decltype(auto) { return "
+                    f"__d_{name}("
                     f"{forwarded_receiver}, {fallback}); "
                     f"}})({receiver})"
                 )
             else:
                 replacement = (
-                    "([&](auto&& __ecpp_receiver) -> decltype(auto) { "
-                    f"if constexpr (requires {{ __ecpp_additional_{name}("
-                    f"__ecpp_receiver, {arguments}); }}) {{ "
-                    f"return __ecpp_dispatch_{name}({call_args}); "
-                    f"}} else {{ return __ecpp_dispatch_{name}("
+                    "([&](auto&& __r) -> decltype(auto) { "
+                    f"if constexpr (requires {{ __x_{name}("
+                    f"__r, {arguments}); }}) {{ "
+                    f"return __d_{name}({call_args}); "
+                    f"}} else {{ return __d_{name}("
                     f"{forwarded_receiver}, {fallback}); }} "
                     f"}})({receiver})"
                 )
         else:
             replacement = (
-                "([&](auto&& __ecpp_receiver) -> decltype(auto) { return "
-                f"__ecpp_dispatch_{name}({call_args}); "
+                "([&](auto&& __r) -> decltype(auto) { return "
+                f"__d_{name}({call_args}); "
                 f"}})({receiver})"
             )
         source = source[:start] + replacement + source[closing + 1 :]
@@ -528,7 +551,7 @@ def translate_casts(source: str) -> str:
         if not source[opening + 1 : closing].strip():
             continue
         replacement = (
-            "__ecpp_ll("
+            "__L("
             if match.group("type") == "ll"
             else f"({match.group('type')})("
         )
@@ -830,7 +853,7 @@ def slice_colons(text: str) -> list[int]:
 
 
 def translate_slice_expressions(source: str) -> str:
-    """Translate Python-style vector slices into `__ecpp_slice` calls."""
+    """Translate Python-style vector slices into `__S` calls."""
     while True:
         mask = code_mask(source)
         candidate: tuple[int, int, list[int]] | None = None
@@ -873,7 +896,7 @@ def translate_slice_expressions(source: str) -> str:
         step = "1" if not step_expression else f"(ll)({step_expression})"
         receiver_start = slice_receiver_start(source, opening, mask)
         receiver = source[receiver_start:opening].strip()
-        replacement = f"__ecpp_slice({receiver}, {start}, {stop}, {step})"
+        replacement = f"__S({receiver}, {start}, {stop}, {step})"
         source = source[:receiver_start] + replacement + source[closing + 1 :]
 
 
@@ -1246,9 +1269,9 @@ def translate_inferred_for_loops(source: str) -> str:
         range_expression = source[colon + 1 : closing].strip()
         if not range_expression:
             continue
-        while f"__ecpp_range{counter}" in source:
+        while f"__g{counter}" in source:
             counter += 1
-        range_name = f"__ecpp_range{counter}"
+        range_name = f"__g{counter}"
         counter += 1
         declaration = source[match.start(group) : match.end(group)]
         replacement = (
@@ -1318,7 +1341,7 @@ def translate_vector_comprehensions(source: str) -> str:
         iterable, mapper = (argument.strip() for argument in arguments)
         template_arguments = f"<{element_type}>" if element_type else ""
         replacement = (
-            f"__ecpp_vector_comprehension{template_arguments}("
+            f"__V{template_arguments}("
             f"{iterable}, {mapper})"
         )
         replacements.append((position + 1, arguments_end, replacement))
@@ -1334,7 +1357,7 @@ def translate_iota_calls(source: str) -> str:
     mask = code_mask(source)
     matches = [match for match in call.finditer(source) if mask[match.start()]]
     for match in reversed(matches):
-        replacement = f"__ecpp_iota{match.group('spacing')}("
+        replacement = f"__I{match.group('spacing')}("
         source = source[: match.start()] + replacement + source[match.end() :]
     return source
 
@@ -1360,7 +1383,7 @@ def translate_rep_shorthand(source: str) -> str:
         arguments = split_top_level_commas(masked_arguments)
         if len(arguments) != 1 or not argument_text.strip():
             continue
-        insertions.append((opening + 1, f"__ecpp_rep{counter}, "))
+        insertions.append((opening + 1, f"__p{counter}, "))
         counter += 1
 
     for position, insertion in reversed(insertions):
@@ -1393,9 +1416,9 @@ def translate_loop_macros(source: str) -> str:
         variable, *values = arguments
         if not re.fullmatch(r"[A-Za-z_]\w*", variable):
             continue
-        while f"__ecpp_loop{counter}_" in source:
+        while f"__l{counter}_" in source:
             counter += 1
-        prefix = f"__ecpp_loop{counter}_"
+        prefix = f"__l{counter}_"
         counter += 1
         if name == "rep":
             replacement = (
@@ -1481,7 +1504,7 @@ def translate_nonloop_macros(source: str) -> str:
         if name == "finish":
             replacement = f"{{print(({argument}));return;}}"
         else:
-            hidden = f"__ecpp_stf{counter}"
+            hidden = f"__T{counter}"
             counter += 1
             replacement = (
                 f"[&,{hidden}=({argument})](auto&& y)->decltype(auto)"
@@ -1533,9 +1556,9 @@ def translate_all_calls(source: str) -> str:
         expression = source[all_open + 1 : all_close].strip()
         if not expression:
             raise TranslationError("all() requires a range expression")
-        while f"__ecpp_all{counter}" in source:
+        while f"__a{counter}" in source:
             counter += 1
-        hidden = f"__ecpp_all{counter}"
+        hidden = f"__a{counter}"
         counter += 1
         call = source[call_start : call_close + 1]
         relative_start = match.start() - call_start
@@ -2663,18 +2686,18 @@ def translate_bracket_let_declarations(source: str) -> str:
         if match:
             names = [name.strip() for name in match.group("names").split(",")]
             requirements = " ".join(
-                f"__ecpp_unpack[{index}];" for index in range(len(names))
+                f"__u[{index}];" for index in range(len(names))
             )
             elements = ", ".join(
-                f"__ecpp_unpack[{index}]" for index in range(len(names))
+                f"__u[{index}]" for index in range(len(names))
             )
             statement = (
                 f"{match.group('indent')}auto [{match.group('names')}] = "
-                "([&](auto&& __ecpp_unpack) { "
+                "([&](auto&& __u) { "
                 f"if constexpr (requires {{ {requirements} }}) {{ "
                 f"return std::tuple{{{elements}}}; "
-                "} else { return std::forward<decltype(__ecpp_unpack)>("
-                "__ecpp_unpack); } "
+                "} else { return std::forward<decltype(__u)>("
+                "__u); } "
                 f"}})({match.group('value')});"
             )
             output.append(statement + remainder + trailing + comment + newline)
@@ -2748,18 +2771,18 @@ def translate_bracket_assignments(source: str) -> str:
                 continue
 
             requirements = " ".join(
-                f"__ecpp_unpack[{index}];" for index in range(len(targets))
+                f"__u[{index}];" for index in range(len(targets))
             )
             indexed_assignments = " ".join(
-                f"{target} = __ecpp_unpack[{index}];"
+                f"{target} = __u[{index}];"
                 for index, target in enumerate(targets)
             )
             tuple_assignments = " ".join(
-                f"{target} = std::get<{index}>(__ecpp_unpack);"
+                f"{target} = std::get<{index}>(__u);"
                 for index, target in enumerate(targets)
             )
             replacement = (
-                f"{prefix}([&](auto&& __ecpp_unpack) {{ "
+                f"{prefix}([&](auto&& __u) {{ "
                 f"if constexpr (requires {{ {requirements} }}) {{ "
                 f"{indexed_assignments} "
                 f"}} else {{ {tuple_assignments} }} "
@@ -3209,16 +3232,82 @@ def make_dispatchers(names: set[str]) -> str:
     dispatchers = []
     for name in sorted(names):
         dispatchers.append(
-            f"template<class S,class...A>decltype(auto)__ecpp_dispatch_{name}"
-            f"(S&&s,A&&...a){{if constexpr(requires{{__ecpp_additional_{name}("
+            f"template<class S,class...A>decltype(auto)__d_{name}"
+            f"(S&&s,A&&...a){{if constexpr(requires{{__x_{name}("
             "std::forward<S>(s),std::forward<A>(a)...);})return "
-            f"__ecpp_additional_{name}(std::forward<S>(s),"
+            f"__x_{name}(std::forward<S>(s),"
             "std::forward<A>(a)...);else if constexpr(requires{"
-            f"__ecpp_additional_{name}(s,std::forward<A>(a)...);}})return "
-            f"__ecpp_additional_{name}(s,std::forward<A>(a)...);else return "
+            f"__x_{name}(s,std::forward<A>(a)...);}})return "
+            f"__x_{name}(s,std::forward<A>(a)...);else return "
             f"std::forward<S>(s).{name}(std::forward<A>(a)...);}}"
         )
     return "\n".join(dispatchers)
+
+
+def compact_cpp_line(line: str) -> str:
+    """Remove whitespace that is not needed to keep adjacent C++ tokens apart."""
+    operator_pairs = {
+        "++", "--", "->", "+=", "-=", "*=", "/=", "%=", "^=", "&=", "|=",
+        "<<", ">>", "<=", ">=", "==", "!=", "&&", "||", "::", ".*", "##",
+    }
+
+    def needs_space(left: str, right: str) -> bool:
+        word_left = left.isalnum() or left in "_$"
+        word_right = right.isalnum() or right in "_$"
+        return (
+            (word_left and word_right)
+            or (left.isdigit() and right == ".")
+            or (left == "." and right.isdigit())
+            or left + right in operator_pairs
+            or (left == "/" and right in "/*")
+        )
+
+    output: list[str] = []
+    pending_space = False
+    index = 0
+    while index < len(line):
+        character = line[index]
+        if character.isspace():
+            pending_space = True
+            index += 1
+            continue
+        if pending_space and output and needs_space(output[-1][-1], character):
+            output.append(" ")
+        pending_space = False
+        if character in {'"', "'"}:
+            quote = character
+            start = index
+            index += 1
+            while index < len(line):
+                if line[index] == "\\":
+                    index += 2
+                elif line[index] == quote:
+                    index += 1
+                    break
+                else:
+                    index += 1
+            output.append(line[start:index])
+        else:
+            output.append(character)
+            index += 1
+    return "".join(output)
+
+
+def shorten_internal_identifiers(source: str) -> str:
+    """Shorten translator-owned reserved identifiers without touching user text."""
+    substitutions = [
+        (r"__l(\d+)_end", r"__e\1"),
+        (r"__l(\d+)_step", r"__s\1"),
+    ]
+    for pattern, replacement in substitutions:
+        mask = code_mask(source)
+        matches = [
+            match for match in re.finditer(pattern, source) if mask[match.start()]
+        ]
+        for match in reversed(matches):
+            value = match.expand(replacement)
+            source = source[: match.start()] + value + source[match.end() :]
+    return source
 
 
 def minify_generated_cpp(source: str) -> str:
@@ -3229,7 +3318,7 @@ def minify_generated_cpp(source: str) -> str:
 
     def flush() -> None:
         if pending:
-            output.append(" ".join(pending))
+            output.append(compact_cpp_line(" ".join(pending)))
             pending.clear()
 
     for line in source.splitlines():
@@ -3245,7 +3334,7 @@ def minify_generated_cpp(source: str) -> str:
             output.append(line.rstrip())
             continued_directive = directive and line.rstrip().endswith("\\")
         elif stripped:
-            pending.append(stripped)
+            pending.append(compact_cpp_line(stripped))
             continued_directive = False
     flush()
     return "\n".join(output)
@@ -3329,6 +3418,9 @@ def translate(
         "preamble.ecpp": preamble.read_text(encoding="utf-8"),
         "main.ecpp": program.read_text(encoding="utf-8"),
     }
+    sources["preamble.ecpp"], embedded_acl = extract_embedded_acl(
+        sources["preamble.ecpp"]
+    )
     record_preamble = translate_record_aliases(
         specialize_local_mode(sources["preamble.ecpp"], judge_mode)
     )
@@ -3392,9 +3484,14 @@ def translate(
         ),
         "main.ecpp": wrap_solve_if_missing(main_body),
     }
-    translated["preamble.ecpp"] = embed_atcoder_library(
-        translated["preamble.ecpp"], preamble.parent / "ac-library"
-    )
+    if embedded_acl is None:
+        translated["preamble.ecpp"] = embed_atcoder_library(
+            translated["preamble.ecpp"], preamble.parent / "ac-library"
+        )
+    else:
+        translated["preamble.ecpp"] = inject_embedded_acl(
+            translated["preamble.ecpp"], embedded_acl
+        )
 
     source_comment = (
         original_source_comment(sources["main.ecpp"])
@@ -3415,7 +3512,7 @@ def translate(
         generated = re.sub(
             r'(?m)^[ \t]*#line[^\r\n]*(?:\r?\n|$)', "", generated
         )
-    return source_comment + minify_generated_cpp(generated)
+    return source_comment + shorten_internal_identifiers(minify_generated_cpp(generated))
 
 
 def main() -> int:
@@ -3445,6 +3542,7 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
 
 
 

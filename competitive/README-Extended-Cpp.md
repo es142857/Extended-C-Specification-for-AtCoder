@@ -46,13 +46,18 @@ operators at the start of the compact template-code line; the remaining
 Generated C++ ends at its final non-whitespace character without a trailing
 newline.
 
-The transpiler recursively embeds the complete bundled `atcoder/all`
-dependency tree into generated C++. ACL include guards, comments, duplicate
-dependencies, and standard-library includes already covered by
-`bits/stdc++.h` are removed; GNU C++23 conditional branches are selected and
-the remaining ACL code is minified with the template. Thus generated C++ has
-only `#include<bits/stdc++.h>` and compiles without an installed ACL or an ACL
-include path.
+`preamble.ecpp` stores the complete expanded and minified `atcoder/all`
+dependency tree in a raw block. The transpiler keeps that block outside ECPP
+syntax rewriting and emits it directly with the template. ACL include guards,
+comments, duplicate dependencies, and standard-library includes already
+covered by `bits/stdc++.h` are absent; GNU C++23 conditional branches are
+already selected. Thus both transpilation and generated C++ work without an
+installed ACL, an ACL source tree, or an ACL include path.
+
+Generated ordinary C++ is compacted lexically: whitespace remains only where
+removing it would merge or change tokens. Long translator-only `__ecpp_*`
+identifiers are rewritten to short reserved identifiers after translation;
+user identifiers and public ACL/ECPP API names are never renamed.
 
 ECPP shorthands formerly implemented as macros are expanded by the transpiler:
 `min`, `max`, `kill`, `stf`, `elif`, `finish`, every `rep`/`range` variant,
@@ -905,6 +910,7 @@ inside `solve`.
 Only one separator is allowed, and it cannot be combined with an explicit
 `void solve()` definition. The VS Code grammar highlights the separator in
 red so the global/body boundary remains visible.
+
 
 
 
