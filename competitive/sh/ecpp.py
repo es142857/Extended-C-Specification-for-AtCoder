@@ -64,6 +64,40 @@ def code_mask(source: str) -> list[bool]:
     return mask
 
 
+def translate_line_continuations(source: str) -> str:
+    """Join code lines ending in `\\` while preserving later line numbers."""
+    mask = code_mask(source)
+    output: list[str] = []
+    pending = ""
+    removed_newlines: list[str] = []
+    offset = 0
+    for line in source.splitlines(keepends=True):
+        body, newline = line, ""
+        if line.endswith("\r\n"):
+            body, newline = line[:-2], "\r\n"
+        elif line.endswith("\n") or line.endswith("\r"):
+            body, newline = line[:-1], line[-1]
+        positions = [
+            index
+            for index, character in enumerate(body)
+            if mask[offset + index] and not character.isspace()
+        ]
+        if newline and positions and body[positions[-1]] == "\\":
+            slash = positions[-1]
+            pending += body[:slash] + body[slash + 1 :]
+            removed_newlines.append(newline)
+        else:
+            output.append(pending + body + newline)
+            output.extend(removed_newlines)
+            pending = ""
+            removed_newlines.clear()
+        offset += len(line)
+    if pending:
+        output.append(pending)
+        output.extend(removed_newlines)
+    return "".join(output)
+
+
 def translate_declarations(source: str) -> tuple[str, set[str]]:
     mask = code_mask(source)
     matches = [
@@ -3214,7 +3248,11 @@ def translate(
     )
     record_main = translate_container_type_names(
         translate_record_aliases(
-            translate_global_type_aliases(translate_solve_separator(sources["main.ecpp"]))
+            translate_global_type_aliases(
+                translate_solve_separator(
+                    translate_line_continuations(sources["main.ecpp"])
+                )
+            )
         )
     )
     translated_preamble, extension_names = translate_declarations(record_preamble)
@@ -3318,6 +3356,7 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
 
 
 

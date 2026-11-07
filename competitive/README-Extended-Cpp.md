@@ -811,7 +811,9 @@ print(value)
 ```
 
 End a physical line with `\\` to continue it without inserting a semicolon.
-The backslash itself is removed:
+Continuation happens before declaration and semicolon inference, and blank
+lines are retained internally so diagnostics after it keep their source line
+numbers. The backslash itself is removed:
 
 ```cpp
 print(1, 2, \
@@ -893,6 +895,7 @@ inside `solve`.
 Only one separator is allowed, and it cannot be combined with an explicit
 `void solve()` definition. The VS Code grammar highlights the separator in
 red so the global/body boundary remains visible.
+
 
 
 
