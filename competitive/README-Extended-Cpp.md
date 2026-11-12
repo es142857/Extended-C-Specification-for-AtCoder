@@ -583,7 +583,14 @@ container's `value_type` before dispatch:
 ```cpp
 pairs = vec<pair<int, int>>()
 pairs.append({1, 2})   // pairs.push_back(pair<int, int>{1, 2})
+
+heap = pq<tuple<int, int, ll>>()
+heap.add({1, 2, 3})    // heap.push(tuple<int, int, ll>{1, 2, 3})
 ```
+
+`append` also converts an already inferred aggregate to the destination
+element type, such as `pair<int, int>` into `pair<int, mint>` when its members
+are convertible.
 
 ## Concatenating vectors
 

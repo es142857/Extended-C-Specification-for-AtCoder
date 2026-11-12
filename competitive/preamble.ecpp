@@ -19,15 +19,15 @@ void Yes(bool f){print(f?"Yes":"No");}void No(bool f){print(f?"No":"Yes");}templ
 vec<S> vec<S>.reverse(){let c=self;reverse(all(c));return c;}template<typename S>
 void vec<S>.sort(){std::sort(self.begin(),self.end());}template<typename S,typename F>
 void vec<S>.sort(F f){std::sort(self.begin(),self.end(),f);}template<typename S,typename T>
-void set<S>.remove(T&&x){self.erase(static_cast<S>(forward<T>(x)));}template<typename S>
-void set<S>.add(S x){self.insert(x);}template<typename S,typename T>
+void set<S>.remove(T&&x){self.erase(static_cast<S>(forward<T>(x)));}template<typename S,typename T>
+void set<S>.add(T&&x){self.insert(S(forward<T>(x)));}template<typename S,typename T>
 void unordered_set<S>.add(T&&x){self.insert(static_cast<S>(forward<T>(x)));}template<typename S,typename T>
-void unordered_set<S>.remove(T&&x){self.erase(static_cast<S>(forward<T>(x)));}template<typename S>
-void vec<S>.append(S x){self.push_back(x);}template<typename S>
-S vec<S>.pop(){S x=move(self.back());self.pop_back();return x;}template<typename S>
-void deque<S>.appendleft(S x){self.push_front(x);}template<typename S>
-void deque<S>.popleft(){self.pop_front();}template<typename S>
-void deque<S>.append(S x){self.push_back(x);}template<typename S>
+void unordered_set<S>.remove(T&&x){self.erase(static_cast<S>(forward<T>(x)));}template<typename S,typename T>
+void vec<S>.append(T&&x){self.push_back(S(forward<T>(x)));}template<typename S>
+S vec<S>.pop(){S x=move(self.back());self.pop_back();return x;}template<typename S,typename T>
+void deque<S>.appendleft(T&&x){self.push_front(S(forward<T>(x)));}template<typename S>
+void deque<S>.popleft(){self.pop_front();}template<typename S,typename T>
+void deque<S>.append(T&&x){self.push_back(S(forward<T>(x)));}template<typename S>
 void deque<S>.pop(){self.pop_back();}template<typename S,typename Container,typename Compare>
 void priority_queue<S,Container,Compare>.add(S value){self.push(move(value));}template<typename S,typename Container,typename Compare>
 S priority_queue<S,Container,Compare>.pop(){S value=self.top();self.pop();return value;}

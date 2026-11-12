@@ -476,7 +476,7 @@ def translate_calls(source: str, names: set[str]) -> str:
             "std::forward<decltype(__r)>(__r)"
         )
         if (
-            name in {"append", "appendleft"}
+            name in {"add", "append", "appendleft"}
             and arguments.startswith("{")
             and arguments.endswith("}")
         ):
