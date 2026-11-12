@@ -19,7 +19,7 @@
         },
         {
             "name": "meta.control.for.ecpp",
-            "begin": "(?:(;)([ \\t]*))?(?<!\\w)(for)([ \\t]*)(\\()(?=[ \\t]*\\[)",
+            "begin": "(?:(;)|(?=^[ \\t]*))([ \\t]*)(for)([ \\t]*)(\\()(?=[ \\t]*\\[)",
             "beginCaptures": {
                 "1": { "name": "punctuation.terminator.statement.cpp" },
                 "3": { "name": "keyword.control.for.cpp" },
