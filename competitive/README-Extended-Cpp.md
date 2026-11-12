@@ -547,13 +547,18 @@ fast = set<str>{"x", "y"}
 fast.remove("x")
 ```
 
-For both priority-queue aliases, `pop()` returns the value that was at `top()`
-and removes it from the queue:
+`pq<T>` is a min-heap and `inv_pq<T>` is a max-heap. For both aliases,
+`add(value)` inserts a value, while `pop()` returns the value that was at
+`top()` and removes it from the queue:
 
 ```cpp
 low = pq<int>()
-low.push(3); low.push(1)
+low.add(3); low.add(1)
 print(low.pop()) // 1; the queue now contains only 3
+
+high = inv_pq<int>()
+high.add(3); high.add(1)
+print(high.pop()) // 3; the queue now contains only 1
 ```
 
 This also requires a nonempty queue, like native `priority_queue::top()` and
