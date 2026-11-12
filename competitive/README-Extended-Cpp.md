@@ -564,6 +564,17 @@ print(high.pop()) // 3; the queue now contains only 1
 This also requires a nonempty queue, like native `priority_queue::top()` and
 `priority_queue::pop()`.
 
+An expression used directly as a `while` condition is checked for an
+`empty()` member. Containers therefore use nonemptiness automatically, while
+ordinary boolean, numeric, stream, and comparison conditions keep their C++
+meaning:
+
+```cpp
+while(values) values.pop() // while (!values.empty())
+while(queue) print(queue.pop())
+while(i < n) i++          // unchanged meaning
+```
+
 For a container of aggregate elements, a braced element is converted to the
 container's `value_type` before dispatch:
 

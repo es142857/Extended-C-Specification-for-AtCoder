@@ -418,6 +418,33 @@ def translate_function_map_calls(source: str) -> str:
             return source
 
 
+def translate_while_conditions(source: str) -> str:
+    """Use container nonemptiness for direct `while(value)` conditions."""
+    pattern = re.compile(r"\bwhile[ \t]*\(")
+    while True:
+        mask = code_mask(source)
+        matches = [match for match in pattern.finditer(source) if mask[match.start()]]
+        transformed = False
+        for match in reversed(matches):
+            opening = match.end() - 1
+            closing = find_closing_paren(source, opening, mask)
+            condition = source[opening + 1 : closing].strip()
+            if not condition or condition.startswith("__W("):
+                continue
+            # A C++ condition declaration cannot be passed as an expression.
+            if re.match(
+                r"^(?:auto|bool|char|short|int|long|float|double|str|ll|ld|"
+                r"[A-Za-z_]\w*(?:\s*<[^;{}]+>)?)\s+[A-Za-z_]\w*\s*=",
+                condition,
+            ):
+                continue
+            source = source[: opening + 1] + f"__W(({condition}))" + source[closing:]
+            transformed = True
+            break
+        if not transformed:
+            return source
+
+
 def translate_calls(source: str, names: set[str]) -> str:
     if not names:
         return source
@@ -3473,6 +3500,7 @@ def translate(
         type_names,
     )
     implicit_main = translate_function_map_calls(implicit_main)
+    implicit_main = translate_while_conditions(implicit_main)
 
     main_body = translate_casts(
         translate_let_declarations(
