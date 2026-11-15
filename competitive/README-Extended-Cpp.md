@@ -301,6 +301,9 @@ Only the last statement is considered. A final mutation, assignment,
 declaration, control statement, or explicit `return` remains a statement;
 the transpiler only supplies its missing semicolon. Nonempty captures such as
 `[=]` and `[value]` are preserved.
+Generated `#line` directives between the final expression and the closing
+brace are ignored when locating that expression, so multiline lambdas still
+emit `return expression;` before the diagnostic mapping for the next line.
 
 When the first argument is not callable, `map(expression, values)` is
 shorthand for a lambda that ignores the current element and evaluates

@@ -1980,11 +1980,17 @@ def implicit_lambda_return_body(body: str, type_names: set[str]) -> str:
     """Return the final top-level expression, leaving final operations alone."""
     mask = code_mask(body)
     comments = comment_mask(body)
+    directives = [False] * len(body)
+    offset = 0
+    for line in body.splitlines(keepends=True):
+        if re.match(r'^[ \t]*#line\b', line):
+            directives[offset : offset + len(line)] = [True] * len(line)
+        offset += len(line)
     round_depth = square_depth = brace_depth = 0
     semicolons: list[int] = []
     brace_closings: list[int] = []
     for index, character in enumerate(body):
-        if not mask[index]:
+        if not mask[index] or directives[index]:
             continue
         if character == "(":
             round_depth += 1
@@ -2009,7 +2015,7 @@ def implicit_lambda_return_body(body: str, type_names: set[str]) -> str:
     code_positions = [
         index
         for index, character in enumerate(body)
-        if not comments[index] and not character.isspace()
+        if not comments[index] and not directives[index] and not character.isspace()
     ]
     if not code_positions:
         return body
@@ -2045,7 +2051,7 @@ def implicit_lambda_return_body(body: str, type_names: set[str]) -> str:
         return body
     first_code, expression_last = statement_code[0], statement_code[-1]
     clean = "".join(
-        body[index] if not comments[index] else " "
+        body[index] if not comments[index] and not directives[index] else " "
         for index in range(first_code, expression_last + 1)
     ).strip()
     if not clean:
