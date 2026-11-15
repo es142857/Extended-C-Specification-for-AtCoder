@@ -22,14 +22,17 @@
 - `cp -a`: generate and copy the self-contained embedded-ACL submission
 - `contest 123`: select `ABC123` as the current contest; prefixes are accepted,
   so `contest arc123` selects `ARC123`. With no argument, print the selection.
-- `sub E`: transpile the current source with `#include<atcoder/all>` and submit
-  it to problem E of the selected contest using `online-judge-tools`
+- `sub e`: transpile the current source with `#include<atcoder/all>` and submit
+  it to problem E of the selected contest using `online-judge-tools`. Problem
+  letters must be lowercase.
+- `atcoder-login`: open a dedicated normal Chrome window for AtCoder login and
+  copy the resulting AtCoder cookies into `oj` without exposing their values
 
 `online-judge-tools` is installed in `.venv`. `sub` constructs the canonical
 AtCoder task URL (for example, `abc123_e`), submits without a second confirmation,
 and always deletes `main_temporary.cpp` afterward. AtCoder authentication is
-managed by `oj`; if its session is not logged in, run `.venv/bin/oj login
-https://atcoder.jp/` once.
+managed by `oj`. Because AtCoder's CAPTCHA rejects direct CUI login, run
+`atcoder-login` once and complete the CAPTCHA in the opened Chrome window.
 
 Common container aliases include `vec<T>` for `vector<T>`. ECPP uses hash
 containers by default: `map<K,V>` and `set<T>` become `unordered_map<K,V>`

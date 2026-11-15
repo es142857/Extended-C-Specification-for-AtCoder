@@ -7,8 +7,8 @@ OJ="$ROOT/.venv/bin/oj"
 TEMPORARY="$ROOT/main_temporary.cpp"
 trap 'rm -f -- "$TEMPORARY"' EXIT
 
-if [[ $# -ne 1 || ! "$1" =~ ^[A-Za-z]$ ]]; then
-    echo "Usage: sub <problem letter>" >&2
+if [[ $# -ne 1 || ! "$1" =~ ^[a-z]$ ]]; then
+    echo "Usage: sub <lowercase problem letter>" >&2
     exit 2
 fi
 if [[ ! -s "$STATE" ]]; then
@@ -21,7 +21,7 @@ if [[ ! -x "$OJ" ]]; then
 fi
 
 contest_id=$(tr '[:upper:]' '[:lower:]' < "$STATE")
-problem=${1,,}
+problem=$1
 url="https://atcoder.jp/contests/$contest_id/tasks/${contest_id}_$problem"
 
 cd "$ROOT"
