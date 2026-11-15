@@ -152,7 +152,8 @@ print(c.sum(0, 2, 1, 3)) // 16
 Both forms preserve the source element type, including `int` and `ll`, and
 accept empty ranges. `cumsum2` asserts that all rows have the same length.
 
-`min(values)` returns the smallest element of a nonempty vector. Calls with
+`min(values)` and `max(values)` return the smallest and largest elements of a
+nonempty vector while preserving its element type. Calls with
 two or more ordinary arguments continue to use the normal value comparison:
 
 ```cpp
