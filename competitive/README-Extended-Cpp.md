@@ -11,10 +11,15 @@
 
 ## Commands
 
-- `bo`: translate, build, run, and judge
+- `bo`: translate, build, run, and judge; after `[AC]`, copy a submission that
+  uses `#include<atcoder/all>`
+- `bo -a`: run the same local test and, after `[AC]`, copy a self-contained
+  submission with the minified ACL embedded
 - `init`: clear contest working files, then clear the terminal without a
   completion message
-- `cp`: generate `main_temporary.cpp`, copy it, and immediately delete it
+- `cp`: generate and copy the `<atcoder/all>` submission, then immediately
+  delete `main_temporary.cpp`
+- `cp -a`: generate and copy the self-contained embedded-ACL submission
 
 Common container aliases include `vec<T>` for `vector<T>`. ECPP uses hash
 containers by default: `map<K,V>` and `set<T>` become `unordered_map<K,V>`
@@ -46,13 +51,14 @@ operators at the start of the compact template-code line; the remaining
 Generated C++ ends at its final non-whitespace character without a trailing
 newline.
 
-`preamble.ecpp` stores the complete expanded and minified `atcoder/all`
-dependency tree in a raw block. The transpiler keeps that block outside ECPP
-syntax rewriting and emits it directly with the template. ACL include guards,
-comments, duplicate dependencies, and standard-library includes already
-covered by `bits/stdc++.h` are absent; GNU C++23 conditional branches are
-already selected. Thus both transpilation and generated C++ work without an
-installed ACL, an ACL source tree, or an ACL include path.
+`preamble.ecpp` stores a complete expanded and minified `atcoder/all`
+dependency tree in a raw block. Local `main.cpp` always uses this block, so
+local compilation does not require an ACL installation or an `ac-library`
+directory. Normal submission generation (`bo`/`cp`) replaces the raw block
+with `#include<atcoder/all>`. The `-a` variants instead emit the raw block and
+produce a self-contained submission for judges without ACL. The embedded
+copy has no ACL include guards, comments, duplicate dependencies, or redundant
+standard-library includes; GNU C++23 conditional branches are already selected.
 
 Generated ordinary C++ is compacted lexically: whitespace remains only where
 removing it would merge or change tokens. Long translator-only `__ecpp_*`

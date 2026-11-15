@@ -3551,6 +3551,7 @@ def translate(
     include_source_comment: bool = True,
     include_line_directives: bool = True,
     judge_mode: bool | None = None,
+    acl_include: bool = False,
 ) -> str:
     sources = {
         "preamble.ecpp": preamble.read_text(encoding="utf-8"),
@@ -3625,7 +3626,14 @@ def translate(
         ),
         "main.ecpp": wrap_solve_if_missing(main_body),
     }
-    if embedded_acl is None:
+    if acl_include:
+        header = "#include<bits/stdc++.h>"
+        if header not in translated["preamble.ecpp"]:
+            raise TranslationError("preamble.ecpp must include <bits/stdc++.h>")
+        translated["preamble.ecpp"] = translated["preamble.ecpp"].replace(
+            header, header + "\n#include<atcoder/all>", 1
+        )
+    elif embedded_acl is None:
         translated["preamble.ecpp"] = embed_atcoder_library(
             translated["preamble.ecpp"], preamble.parent / "ac-library"
         )
@@ -3664,6 +3672,11 @@ def main() -> int:
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--judge", action="store_true")
     mode.add_argument("--submit", action="store_true")
+    parser.add_argument(
+        "--acl-include",
+        action="store_true",
+        help="emit #include <atcoder/all> instead of the embedded ACL",
+    )
     args = parser.parse_args()
     try:
         output = translate(
@@ -3672,6 +3685,7 @@ def main() -> int:
             include_source_comment=not args.judge,
             include_line_directives=not args.submit,
             judge_mode=True if args.judge else False if args.submit else None,
+            acl_include=args.acl_include,
         )
         args.output.write_text(output, encoding="utf-8")
     except (OSError, TranslationError) as error:

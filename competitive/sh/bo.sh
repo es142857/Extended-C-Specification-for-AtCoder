@@ -2,7 +2,18 @@
 set -euo pipefail
 
 ROOT=/home/soyuz/competitive
-MODE=${1:-run}
+MODE=run
+EMBED_ACL=false
+for argument in "$@"; do
+    if [[ "$argument" == "-a" ]]; then
+        EMBED_ACL=true
+    elif [[ "$MODE" == "run" ]]; then
+        MODE=$argument
+    else
+        echo "Usage: bo [-a] [run|build|translate|term]" >&2
+        exit 2
+    fi
+done
 cd "$ROOT"
 
 spinner_pid=""
@@ -73,7 +84,7 @@ if [[ "$MODE" == "term" ]]; then
 fi
 
 if [[ "$MODE" != "run" ]]; then
-    echo "Usage: bo [run|build|translate|term]" >&2
+    echo "Usage: bo [-a] [run|build|translate|term]" >&2
     exit 2
 fi
 
@@ -86,7 +97,11 @@ echo "======================="
 
 if [[ -f judge.py ]]; then
     if python3 judge.py; then
-        "$ROOT/sh/cp.sh"
+        if $EMBED_ACL; then
+            "$ROOT/sh/cp.sh" -a
+        else
+            "$ROOT/sh/cp.sh"
+        fi
     fi
 fi
 
