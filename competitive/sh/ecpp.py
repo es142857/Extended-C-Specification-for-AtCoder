@@ -3633,6 +3633,9 @@ def translate(
         translated["preamble.ecpp"] = translated["preamble.ecpp"].replace(
             header, header + "\n#include<atcoder/all>", 1
         )
+        translated["preamble.ecpp"] = translated["preamble.ecpp"].replace(
+            "//__ACL_SLOT__\n", "", 1
+        )
     elif embedded_acl is None:
         translated["preamble.ecpp"] = embed_atcoder_library(
             translated["preamble.ecpp"], preamble.parent / "ac-library"
@@ -3697,27 +3700,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

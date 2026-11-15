@@ -15,5 +15,3 @@ fi
 python3 sh/ecpp.py --submit "${acl_args[@]}" preamble.ecpp main.ecpp "$TEMPORARY" >/dev/null
 clip.exe < "$TEMPORARY"
 echo "Generated and copied submission C++ to the clipboard."
-
-

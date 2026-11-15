@@ -104,5 +104,3 @@ if [[ -f judge.py ]]; then
         fi
     fi
 fi
-
-
