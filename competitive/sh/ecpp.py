@@ -2056,6 +2056,9 @@ def implicit_lambda_return_body(body: str, type_names: set[str]) -> str:
     ).strip()
     if not clean:
         return body
+    if clean == ";":
+        translated = implicit_lambda_return_body(body[:first_code], type_names)
+        return translated + body[first_code:]
 
     def terminate_statement() -> str:
         if has_trailing_semicolon:
@@ -2159,6 +2162,103 @@ def translate_lambda_implicit_returns(source: str, type_names: set[str]) -> str:
             break
         if not changed:
             return source
+
+
+def translate_lambda_branch_implicit_returns(
+    source: str, type_names: set[str]
+) -> str:
+    """Make a value at the end of a braced lambda branch an early return."""
+    while True:
+        mask = code_mask(source)
+        changed = False
+        for _, _, _, _, lambda_open, lambda_close in find_lambda_expressions(source):
+            for match in re.finditer(
+                r"\bif\s*\(", source[lambda_open + 1 : lambda_close]
+            ):
+                keyword = lambda_open + 1 + match.start()
+                if mask[keyword]:
+                    paren = source.find("(", keyword, lambda_close)
+                    close = find_closing_paren(source, paren, mask)
+                    brace = close + 1
+                    while brace < lambda_close and source[brace].isspace():
+                        brace += 1
+                    if brace < lambda_close and source[brace] == "{" and mask[brace]:
+                        end = find_closing_brace(source, brace, mask)
+                        body = source[brace + 1 : end]
+                        normalized = re.sub(
+                            r"((?:[ \t]*#line[^\r\n]*(?:\r?\n|$))+)\s*;\s*$",
+                            r"\1",
+                            body,
+                        )
+                        translated = implicit_lambda_return_body(normalized, type_names)
+                        if translated != body:
+                            source = source[: brace + 1] + translated + source[end:]
+                            changed = True
+                            break
+            if changed:
+                break
+        if not changed:
+            return source
+
+
+def translate_self_recursive_lambdas(source: str) -> str:
+    """Wrap explicit-self and name-recursive lambdas for normal outside calls."""
+    replacements: list[tuple[int, int, str]] = []
+    for start, _, parameters_open, parameters_close, body_open, body_close in (
+        find_lambda_expressions(source)
+    ):
+        if parameters_open is None or parameters_close is None:
+            continue
+        parameters = split_top_level_commas(
+            source[parameters_open + 1 : parameters_close]
+        )
+        body = source[body_open + 1 : body_close]
+        body_code = "".join(
+            character if enabled else " "
+            for character, enabled in zip(body, code_mask(body))
+        )
+        explicit = False
+        if len(parameters) >= 2:
+            names = re.findall(r"[A-Za-z_]\w*", parameters[0])
+            if names:
+                self_name = names[-1]
+                explicit = bool(re.search(
+                    rf"\b{re.escape(self_name)}\s*\(\s*{re.escape(self_name)}\s*,",
+                    body_code,
+                ))
+        if explicit:
+            replacement = "__Y{" + source[start : body_close + 1] + "}"
+            replacements.append((start, body_close + 1, replacement))
+            continue
+
+        assignment = re.search(
+            r"(?:auto\s+)?([A-Za-z_]\w*)\s*=\s*$", source[max(0, start - 100) : start]
+        )
+        if not assignment:
+            continue
+        name = assignment.group(1)
+        if not re.search(rf"\b{re.escape(name)}\s*\(", body_code):
+            continue
+        rewritten_body = body
+        body_mask = code_mask(body)
+        calls = [
+            match
+            for match in re.finditer(rf"\b{re.escape(name)}\s*\(", body)
+            if body_mask[match.start()]
+        ]
+        for call in reversed(calls):
+            rewritten_body = (
+                rewritten_body[: call.start()]
+                + "__ecpp_self(__ecpp_self,"
+                + rewritten_body[call.end() :]
+            )
+        lambda_text = source[start : parameters_open + 1]
+        lambda_text += "auto __ecpp_self," + source[parameters_open + 1 : body_open + 1]
+        lambda_text += rewritten_body + "}"
+        replacements.append((start, body_close + 1, "__Y{" + lambda_text + "}"))
+    for start, end, replacement in reversed(replacements):
+        source = source[:start] + replacement + source[end:]
+    return source
 
 
 def translate_function_implicit_returns(source: str, type_names: set[str]) -> str:
@@ -3515,7 +3615,9 @@ def translate(
     )
     main_body = insert_line_semicolons(main_body)
     main_body = translate_function_implicit_returns(main_body, type_names)
+    main_body = translate_lambda_branch_implicit_returns(main_body, type_names)
     main_body = translate_lambda_implicit_returns(main_body, type_names)
+    main_body = translate_self_recursive_lambdas(main_body)
 
     translated = {
         "preamble.ecpp": translate_casts(

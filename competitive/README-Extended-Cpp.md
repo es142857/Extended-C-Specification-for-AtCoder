@@ -305,6 +305,27 @@ Generated `#line` directives between the final expression and the closing
 brace are ignored when locating that expression, so multiline lambdas still
 emit `return expression;` before the diagnostic mapping for the next line.
 
+A lambda assigned to a variable may call itself by that variable name. The
+transpiler supplies the fixed-point argument internally, so both recursive and
+outside calls use the ordinary argument list. A value at the end of a braced
+`if` branch is an early implicit return, which also establishes the recursive
+lambda's return type before the recursive call:
+
+```cpp
+fib=[](n){
+    if(n<2){n}
+    fib(n-1)+fib(n-2)
+}
+print(fib(10)) // 55
+```
+
+The explicit-self form remains supported as well:
+
+```cpp
+fact=[](self,n){if(n<2){1};n*self(self,n-1)}
+print(fact(5)) // the outside call still omits `self`
+```
+
 When the first argument is not callable, `map(expression, values)` is
 shorthand for a lambda that ignores the current element and evaluates
 `expression` once per element. This constant-expression behavior applies to
