@@ -565,15 +565,18 @@ counterparts:
 ```cpp
 values.append(x)       // vector::push_back(x)
 last = values.pop()    // move back(), pop_back(), then return last
+item = values.pop(i)   // return values[i], then erase values[0] through values[i]
 queue.appendleft(x)    // deque::push_front(x)
 queue.popleft()        // deque::pop_front()
 queue.append(x)        // deque::push_back(x)
 queue.pop()            // deque::pop_back()
 ```
 
-`vector::pop()` returns the removed last element. The other five operations
-return `void`, matching the corresponding C++ methods. Calling a pop operation
-on an empty container has the same precondition as the native method.
+`vector::pop()` returns the removed last element. `vector::pop(i)` returns the
+old `values[i]` and erases the inclusive prefix `[0, i]`. The other five
+operations return `void`, matching the corresponding C++ methods. Invalid
+positions and empty-container pop operations have the same preconditions as
+the underlying native operations.
 
 Both ordered and unordered sets provide Python-style removal:
 
