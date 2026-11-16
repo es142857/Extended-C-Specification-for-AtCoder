@@ -31,8 +31,9 @@ rewrite does not affect the functional `map(function, values)` form.
 runtime errors. `init` clears `copier.txt`, `in.txt`, `expected_out.txt`,
 `out.txt`, `main.ecpp`, `main.cpp`, `main_temporary.cpp`, and `generator.py`.
 
-At the start of every `bo` invocation, text in the Windows clipboard replaces
-`copier.txt`. If the clipboard has no text, the existing file is retained.
+At the start of `bo`, text in the Windows clipboard is copied to `copier.txt`
+only when `copier.txt` is empty. Existing file contents always take priority;
+if both are empty or the clipboard has no text, the file stays empty.
 
 `main.cpp` omits the source comments and retains `#line` mappings for local
 compiler diagnostics. Temporary `main_temporary.cpp` starts with one comment
