@@ -17,7 +17,7 @@ for(auto&&__g1=(v);auto i:__g1){
 #line 6 "main.ecpp"
 auto ndp=uoset<int>();
 #line 7 "main.ecpp"
-for(auto&&__g2=(dp);auto j:__g2)ndp.inesrt(j+i),ndp.insert(j-i);
+for(auto&&__g2=(dp);auto j:__g2)([&](auto&&__r)->decltype(auto){return __d_add(std::forward<decltype(__r)>(__r),j+i);})(ndp),([&](auto&&__r)->decltype(auto){return __d_add(std::forward<decltype(__r)>(__r),j-i);})(ndp);
 #line 8 "main.ecpp"
 swap(dp,ndp);
 #line 9 "main.ecpp"
@@ -34,9 +34,9 @@ auto c1=c2;
 #line 13 "main.ecpp"
 auto pre=-1,t=0;
 #line 14 "main.ecpp"
-for(int i=0,__e1=(n);i<__e1;++i)([&](auto&&__r)->decltype(auto){return __d_append(std::forward<decltype(__r)>(__r),i-pre-1);})(if(s[i]=='T')(t?c1:c2)),pre=i,t^=1;
+for(int i=0,__e1=(len(s));i<__e1;++i)if(s[i]=='T')([&](auto&&__r)->decltype(auto){return __d_append(std::forward<decltype(__r)>(__r),i-pre-1);})((t?c1:c2)),pre=i,t^=1;
 #line 15 "main.ecpp"
-([&](auto&&__r)->decltype(auto){return __d_append(std::forward<decltype(__r)>(__r),n-pre-1);})((t?c1:c2));
+([&](auto&&__r)->decltype(auto){return __d_append(std::forward<decltype(__r)>(__r),len(s)-pre-1);})((t?c1:c2));
 #line 16 "main.ecpp"
 x-=c1.front(),([&](auto&&__r)->decltype(auto){return __d_pop(std::forward<decltype(__r)>(__r),0);})(c1);
 #line 17 "main.ecpp"

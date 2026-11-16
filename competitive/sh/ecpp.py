@@ -302,6 +302,32 @@ def receiver_start(source: str, dot: int, mask: list[bool]) -> int:
             continue
         ch = source[i]
         if ch == ")":
+            if paren == 0 and bracket == 0:
+                depth = 1
+                opening = i - 1
+                while opening >= 0:
+                    if mask[opening]:
+                        if source[opening] == ")":
+                            depth += 1
+                        elif source[opening] == "(":
+                            depth -= 1
+                            if depth == 0:
+                                break
+                    opening -= 1
+                word_end = opening
+                while word_end > 0 and source[word_end - 1] in " \t":
+                    word_end -= 1
+                word_start = word_end
+                while word_start > 0 and (
+                    source[word_start - 1].isalnum() or source[word_start - 1] == "_"
+                ):
+                    word_start -= 1
+                if source[word_start:word_end] in {
+                    "if", "for", "while", "switch", "catch",
+                    "rep", "rrep", "range", "rrange", "srange", "rsrange",
+                    "subset",
+                }:
+                    break
             # A loop/control macro can be immediately followed by its body,
             # e.g. `rep(_, n)values.append(x)`.  The closing parenthesis is
             # not part of the member-call receiver in that form.

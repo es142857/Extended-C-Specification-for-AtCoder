@@ -578,6 +578,9 @@ operations return `void`, matching the corresponding C++ methods. Invalid
 positions and empty-container pop operations have the same preconditions as
 the underlying native operations.
 
+Member operations also accept a parenthesized conditional receiver directly
+after a control header, for example `if(ok)(pick?a:b).append(value)`.
+
 Both ordered and unordered sets provide Python-style removal:
 
 ```cpp
