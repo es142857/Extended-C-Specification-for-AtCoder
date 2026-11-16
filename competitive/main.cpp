@@ -5,6 +5,33 @@ using namespace std;using ll=long long;using ull=unsigned long long;using ui=uns
 void solve(){
 #line 1 "main.ecpp"
 #line 1 "main.ecpp"
-auto[n,h,a,b,c,d,e]=([&](auto&&__u){if constexpr(requires{__u[0];__u[1];__u[2];__u[3];__u[4];__u[5];__u[6];}){return std::tuple{__u[0],__u[1],__u[2],__u[3],__u[4],__u[5],__u[6]};}else{return std::forward<decltype(__u)>(__u);};})(([&](auto&&__r)->decltype(auto){return __d_map(std::forward<decltype(__r)>(__r),[&](auto&&__v)->decltype(auto){auto&&th=std::forward<decltype(__v)>(__v);return(stoll(th));});})((input(7))));
+auto n=(int)(input());
+#line 1 "main.ecpp"
+auto a=([&](auto&&__r)->decltype(auto){return __d_map(std::forward<decltype(__r)>(__r),[&](auto&&__v)->decltype(auto){auto&&th=std::forward<decltype(__v)>(__v);return(stoll(th));});})((input(3*n)));
 #line 2 "main.ecpp"
-print(my_min(([&](auto&&__r)->decltype(auto){if constexpr(requires{__x_map(__r,[&](auto x){return a*x+c*my_max(0,1+((n-x)*e-h-b*x)/(d+e));});}){return __d_map(std::forward<decltype(__r)>(__r),[&](auto x){return a*x+c*my_max(0,1+((n-x)*e-h-b*x)/(d+e));});}else{return __d_map(std::forward<decltype(__r)>(__r),[&](auto&&__v)->decltype(auto){if constexpr(requires{([&](auto x){return a*x+c*my_max(0,1+((n-x)*e-h-b*x)/(d+e));})(std::forward<decltype(__v)>(__v));}){return([&](auto x){return a*x+c*my_max(0,1+((n-x)*e-h-b*x)/(d+e));})(std::forward<decltype(__v)>(__v));}else{return([&](auto x){return a*x+c*my_max(0,1+((n-x)*e-h-b*x)/(d+e));});};});};})(__I(n+1))));}
+#line 2 "main.ecpp"
+auto y=vec(n+1,0ll);
+#line 2 "main.ecpp"
+auto x=y;
+#line 3 "main.ecpp"
+auto h=pq<ll>();
+#line 3 "main.ecpp"
+auto cur=0ll;
+#line 4 "main.ecpp"
+for(int i=0,__e1=(n);i<__e1;++i)h.push(a[i]),cur+=a[i];
+#line 5 "main.ecpp"
+for(int i=0,__e2=(n+1);i<__e2;++i)x[i]=cur,([&](auto&&__r)->decltype(auto){return __d_add(std::forward<decltype(__r)>(__r),a[i+n]);})(h),cur+=a[i+n]-([&](auto&&__r)->decltype(auto){return __d_pop(std::forward<decltype(__r)>(__r));})(h);
+#line 6 "main.ecpp"
+auto __ecpp_rebind_1=inv_pq<ll>();
+#line 6 "main.ecpp"
+cur=0ll;
+#line 7 "main.ecpp"
+for(int i=0,__e3=(n);i<__e3;++i)__ecpp_rebind_1.push(a[3*n-i-1]),cur+=a[3*n-i-1];
+#line 8 "main.ecpp"
+for(int i=(n+1)-1;i>=0;--i)y[i]=cur,([&](auto&&__r)->decltype(auto){return __d_add(std::forward<decltype(__r)>(__r),a[i+n]);})(__ecpp_rebind_1),cur+=a[i+n]-([&](auto&&__r)->decltype(auto){return __d_pop(std::forward<decltype(__r)>(__r));})(__ecpp_rebind_1);
+#line 9 "main.ecpp"
+auto res=-INF;
+#line 9 "main.ecpp"
+for(int i=0,__e5=(n+1);i<__e5;++i)chmin(res,x[i]-y[i]);
+#line 9 "main.ecpp"
+print(res);}

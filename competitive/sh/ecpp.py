@@ -2718,6 +2718,55 @@ def translate_implicit_let_declarations(
     return "".join(output)
 
 
+def translate_heap_type_reassignments(source: str) -> str:
+    """Version a pq variable when reassignment changes its comparator type."""
+    signatures: dict[str, str] = {}
+    aliases: dict[str, str] = {}
+    serial = 0
+    output: list[str] = []
+
+    def replace_names(text: str, mapping: dict[str, str]) -> str:
+        mask = code_mask(text)
+        matches: list[tuple[int, int, str]] = []
+        for name, replacement in mapping.items():
+            for match in re.finditer(rf"\b{re.escape(name)}\b", text):
+                if mask[match.start()]:
+                    matches.append((match.start(), match.end(), replacement))
+        for start, end, replacement in sorted(matches, reverse=True):
+            text = text[:start] + replacement + text[end:]
+        return text
+
+    assignment = re.compile(
+        r"^(?P<indent>[ \t]*)(?P<name>[A-Za-z_]\w*)[ \t]*=(?!=)[ \t]*"
+        r"(?P<kind>pq|inv_pq)[ \t]*<(?P<type>[^;{}\r\n]+)>[ \t]*\("
+    )
+    for line in source.splitlines(keepends=True):
+        match = assignment.match("".join(
+            character if enabled else " "
+            for character, enabled in zip(line, code_mask(line))
+        ))
+        if not match:
+            output.append(replace_names(line, aliases))
+            continue
+        name = match.group("name")
+        signature = match.group("kind") + "<" + re.sub(r"\s+", "", match.group("type")) + ">"
+        previous = signatures.get(name)
+        if previous is None or previous == signature:
+            signatures[name] = signature
+            output.append(replace_names(line, aliases))
+            continue
+        serial += 1
+        replacement = f"__ecpp_rebind_{serial}"
+        prefix = replace_names(line[: match.start("name")], aliases)
+        suffix_mapping = dict(aliases)
+        suffix_mapping[name] = replacement
+        suffix = replace_names(line[match.end("name") :], suffix_mapping)
+        output.append(prefix + "let " + replacement + suffix)
+        aliases[name] = replacement
+        signatures[name] = signature
+    return "".join(output)
+
+
 def translate_let_declarations(source: str) -> str:
     """Translate `let` only when it has the shape of a variable declaration."""
     source = translate_bracket_let_declarations(source)
@@ -3602,6 +3651,7 @@ def translate(
     translated_main = translate_bound_calls(translated_main)
     translated_main = translate_iota_calls(translated_main)
     translated_main = translate_vector_comprehensions(translated_main)
+    translated_main = translate_heap_type_reassignments(translated_main)
     implicit_main = translate_implicit_let_declarations(
         translated_main,
         type_names,

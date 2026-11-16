@@ -594,6 +594,16 @@ high.add(3); high.add(1)
 print(high.pop()) // 3; the queue now contains only 1
 ```
 
+A heap variable may be rebound between the two heap kinds. The transpiler
+versions its C++ storage internally, so subsequent uses keep the ECPP name:
+
+```cpp
+h = pq<ll>()
+// use h as a min-heap
+h = inv_pq<ll>()
+// h is now a fresh max-heap
+```
+
 This also requires a nonempty queue, like native `priority_queue::top()` and
 `priority_queue::pop()`.
 
