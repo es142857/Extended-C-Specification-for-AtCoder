@@ -2,7 +2,7 @@
 
 `main.ecpp` is the only file normally edited. Running `bo` performs:
 
-1. combined input/output data in `copier.txt` -> `in.txt` and `expected_out.txt`
+1. Windows clipboard text -> `copier.txt` -> `in.txt` and `expected_out.txt`
 2. `preamble.ecpp` + `main.ecpp` -> `main.cpp`
 3. `main.cpp` -> `a.out`
 4. `a.out < in.txt` -> `out.txt`
@@ -30,6 +30,9 @@ rewrite does not affect the functional `map(function, values)` form.
 `bo` always removes `a.out` when it finishes, including failed builds and
 runtime errors. `init` clears `copier.txt`, `in.txt`, `expected_out.txt`,
 `out.txt`, `main.ecpp`, `main.cpp`, `main_temporary.cpp`, and `generator.py`.
+
+At the start of every `bo` invocation, text in the Windows clipboard replaces
+`copier.txt`. If the clipboard has no text, the existing file is retained.
 
 `main.cpp` omits the source comments and retains `#line` mappings for local
 compiler diagnostics. Temporary `main_temporary.cpp` starts with one comment

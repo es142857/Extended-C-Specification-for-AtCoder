@@ -33,6 +33,16 @@ cleanup() {
 
 trap cleanup EXIT
 
+clipboard_file=$(mktemp)
+if powershell.exe -NoProfile -NonInteractive -Command \
+    '[Console]::OutputEncoding=[Text.UTF8Encoding]::new($false);[Console]::Write((Get-Clipboard -Raw -Format Text))' \
+    >"$clipboard_file" 2>/dev/null; then
+    cp -- "$clipboard_file" copier.txt
+else
+    echo "bo: clipboard does not contain text; keeping copier.txt unchanged." >&2
+fi
+rm -f -- "$clipboard_file"
+
 sleep 0.1
 python3 sh/copier.py copier.txt in.txt expected_out.txt
 python3 sh/ecpp.py --judge preamble.ecpp main.ecpp main.cpp >/dev/null
