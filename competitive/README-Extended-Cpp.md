@@ -581,6 +581,10 @@ the underlying native operations.
 Member operations also accept a parenthesized conditional receiver directly
 after a control header, for example `if(ok)(pick?a:b).append(value)`.
 
+`count(values, value)` accepts a container directly and is translated to the
+equivalent range algorithm. Native three-argument iterator calls remain
+unchanged.
+
 Both ordered and unordered sets provide Python-style removal:
 
 ```cpp

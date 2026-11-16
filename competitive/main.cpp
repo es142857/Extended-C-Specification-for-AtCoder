@@ -11,19 +11,19 @@ auto[x,y]=([&](auto&&__u){if constexpr(requires{__u[0];__u[1];}){return std::tup
 #line 3 "main.ecpp"
 auto f=[&](auto a,auto v){
 #line 4 "main.ecpp"
-auto dp=uoset<int>();
+auto dp=vec(1,0);
 #line 5 "main.ecpp"
 for(auto&&__g1=(v);auto i:__g1){
 #line 6 "main.ecpp"
-auto ndp=uoset<int>();
+auto ndp=vec<int>();
 #line 7 "main.ecpp"
-for(auto&&__g2=(dp);auto j:__g2)([&](auto&&__r)->decltype(auto){return __d_add(std::forward<decltype(__r)>(__r),j+i);})(ndp),([&](auto&&__r)->decltype(auto){return __d_add(std::forward<decltype(__r)>(__r),j-i);})(ndp);
+for(auto&&__g2=(dp);auto j:__g2)([&](auto&&__r)->decltype(auto){return __d_append(std::forward<decltype(__r)>(__r),j+i);})(ndp),([&](auto&&__r)->decltype(auto){return __d_append(std::forward<decltype(__r)>(__r),j-i);})(ndp);
 #line 8 "main.ecpp"
-swap(dp,ndp);
+dp=dedupe(ndp);
 #line 9 "main.ecpp"
 ;}
 #line 10 "main.ecpp"
-return dp.count(a);
+return std::ranges::count(dp,a);
 #line 11 "main.ecpp"
 };
 #line 12 "main.ecpp"
@@ -38,6 +38,6 @@ for(int i=0,__e1=(len(s));i<__e1;++i)if(s[i]=='T')([&](auto&&__r)->decltype(auto
 #line 15 "main.ecpp"
 ([&](auto&&__r)->decltype(auto){return __d_append(std::forward<decltype(__r)>(__r),len(s)-pre-1);})((t?c1:c2));
 #line 16 "main.ecpp"
-x-=c1.front(),([&](auto&&__r)->decltype(auto){return __d_pop(std::forward<decltype(__r)>(__r),0);})(c1);
+x-=c1[0],([&](auto&&__r)->decltype(auto){return __d_pop(std::forward<decltype(__r)>(__r),0);})(c1);
 #line 17 "main.ecpp"
 Yes(f(x,c1)&&f(y,c2));}

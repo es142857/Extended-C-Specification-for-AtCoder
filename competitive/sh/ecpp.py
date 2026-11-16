@@ -1727,6 +1727,35 @@ def translate_bound_calls(source: str) -> str:
     return source
 
 
+def translate_count_calls(source: str) -> str:
+    """Allow `count(range, value)` while preserving iterator overloads."""
+    call = re.compile(r"(?<![\w.:>])count[ \t]*\(")
+    mask = code_mask(source)
+    replacements: list[tuple[int, int, str]] = []
+
+    for match in call.finditer(source):
+        if not mask[match.start()]:
+            continue
+        opening = match.end() - 1
+        closing = find_closing_paren(source, opening, mask)
+        argument_text = source[opening + 1 : closing]
+        argument_mask = code_mask(argument_text)
+        masked_arguments = "".join(
+            character if argument_mask[index] else " "
+            for index, character in enumerate(argument_text)
+        )
+        arguments = split_top_level_commas(masked_arguments)
+        if len(arguments) != 2 or not all(
+            argument.strip() for argument in arguments
+        ):
+            continue
+        replacements.append((match.start(), opening, "std::ranges::count"))
+
+    for start, end, replacement in reversed(replacements):
+        source = source[:start] + replacement + source[end:]
+    return source
+
+
 BUILTIN_TYPE_NAMES = {
     "auto",
     "bool",
@@ -3675,6 +3704,7 @@ def translate(
     translated_main = translate_sort_calls(translated_main)
     translated_main = translate_reverse_calls(translated_main)
     translated_main = translate_bound_calls(translated_main)
+    translated_main = translate_count_calls(translated_main)
     translated_main = translate_iota_calls(translated_main)
     translated_main = translate_vector_comprehensions(translated_main)
     translated_main = translate_heap_type_reassignments(translated_main)
