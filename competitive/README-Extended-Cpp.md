@@ -563,7 +563,7 @@ Vectors and deques provide short mutation methods that forward to their C++
 counterparts:
 
 ```cpp
-values.append(x)       // vector::push_back(x)
+values.append(x)       // vector::emplace_back(x)
 last = values.pop()    // move back(), pop_back(), then return last
 item = values.pop(i)   // return values[i], then erase values[0] through values[i]
 queue.appendleft(x)    // deque::push_front(x)
@@ -577,6 +577,9 @@ old `values[i]` and erases the inclusive prefix `[0, i]`. The other five
 operations return `void`, matching the corresponding C++ methods. Invalid
 positions and empty-container pop operations have the same preconditions as
 the underlying native operations.
+
+`vector::append` also accepts multiple constructor arguments, so
+`pairs.append(a, b)` directly uses `pairs.emplace_back(a, b)`.
 
 Member operations also accept a parenthesized conditional receiver directly
 after a control header, for example `if(ok)(pick?a:b).append(value)`.

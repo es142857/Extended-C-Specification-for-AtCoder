@@ -23,8 +23,8 @@ void vec<S>.sort(F f){std::sort(self.begin(),self.end(),f);}template<typename S,
 void set<S>.remove(T&&x){self.erase(static_cast<S>(forward<T>(x)));}template<typename S,typename T>
 void set<S>.add(T&&x){self.insert(S(forward<T>(x)));}template<typename S,typename T>
 void unordered_set<S>.add(T&&x){self.insert(static_cast<S>(forward<T>(x)));}template<typename S,typename T>
-void unordered_set<S>.remove(T&&x){self.erase(static_cast<S>(forward<T>(x)));}template<typename S,typename T>
-void vec<S>.append(T&&x){self.push_back(S(forward<T>(x)));}template<typename S>
+void unordered_set<S>.remove(T&&x){self.erase(static_cast<S>(forward<T>(x)));}template<typename S,typename... T>
+void vec<S>.append(T&&...x){self.emplace_back(forward<T>(x)...);}template<typename S>
 S vec<S>.pop(){S x=move(self.back());self.pop_back();return x;}template<typename S>
 S vec<S>.pop(int idx){S x=move(self[idx]);self.erase(self.begin(),self.begin()+idx+1);return x;}template<typename S,typename T>
 void deque<S>.appendleft(T&&x){self.push_front(S(forward<T>(x)));}template<typename S>
