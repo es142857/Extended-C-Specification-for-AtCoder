@@ -427,24 +427,17 @@ and leaves the input unchanged:
 ordered = sorted(values, [](x, y) { return x.value < y.value; })
 ```
 
-`sort(a)` sorts a vector in place. A comparator can be supplied as the second
-argument with `sort(a, f)`:
-
-```cpp
-sort(values)
-sort(values, greater<int>())
-```
-
-The member-call form also sorts the receiving vector in place and returns
-`void`:
+`vector::sort()` sorts the receiving vector in place and returns `void`. A
+comparator may be supplied as its argument:
 
 ```cpp
 values.sort()
 values.sort(greater<int>())
 ```
 
-Iterator forms such as `sort(a.begin(), a.end())` and existing `sort(all(a))`
-calls continue to work.
+The former container shorthand `sort(values)` and `sort(values, comparator)`
+is not supported. Native iterator forms such as `sort(a.begin(), a.end())` and
+explicit `sort(all(a))` calls continue to work.
 
 Likewise, `reverse(values)` reverses a complete range in place. It is
 equivalent to `reverse(all(values))`; the ordinary two-iterator form remains
