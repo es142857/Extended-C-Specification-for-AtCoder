@@ -1781,6 +1781,54 @@ def translate_container_type_names(source: str) -> str:
     return "".join(output)
 
 
+def translate_braced_type_lists(source: str) -> str:
+    """Translate `{T, U}` type arguments to pair and longer lists to tuple."""
+    while True:
+        mask = code_mask(source)
+        stack: list[int] = []
+        replacement: tuple[int, int, str] | None = None
+        for index, character in enumerate(source):
+            if not mask[index]:
+                continue
+            if character == "{":
+                stack.append(index)
+                continue
+            if character != "}" or not stack:
+                continue
+            opening = stack.pop()
+            before = opening - 1
+            while before >= 0 and source[before] in " \t\r\n":
+                before -= 1
+            after = index + 1
+            while after < len(source) and source[after] in " \t\r\n":
+                after += 1
+            if (
+                before < 0
+                or after >= len(source)
+                or source[before] not in "<,{"
+                or source[after] not in ">,}"
+            ):
+                continue
+            arguments = [
+                argument.strip()
+                for argument in split_top_level_commas(source[opening + 1 : index])
+            ]
+            if len(arguments) < 2 or not all(
+                argument
+                and re.match(r"^(?:const[ \t]+|volatile[ \t]+)?[A-Za-z_:]", argument)
+                and not re.search(r"[{}='\";+/%!?|^~()]", argument)
+                for argument in arguments
+            ):
+                continue
+            kind = "pair" if len(arguments) == 2 else "tuple"
+            replacement = (opening, index + 1, f"{kind}<{','.join(arguments)}>")
+            break
+        if replacement is None:
+            return source
+        start, end, text = replacement
+        source = source[:start] + text + source[end:]
+
+
 def declared_type_names(source: str) -> set[str]:
     """Collect user type names that may begin an explicit declaration."""
     names = set(BUILTIN_TYPE_NAMES)
@@ -2764,7 +2812,7 @@ def translate_heap_type_reassignments(source: str) -> str:
 
     assignment = re.compile(
         r"^(?P<indent>[ \t]*)(?P<name>[A-Za-z_]\w*)[ \t]*=(?!=)[ \t]*"
-        r"(?P<kind>pq|inv_pq)[ \t]*<(?P<type>[^;{}\r\n]+)>[ \t]*\("
+        r"(?P<kind>pq|invpq)[ \t]*<(?P<type>[^;{}\r\n]+)>[ \t]*\("
     )
     for line in source.splitlines(keepends=True):
         match = assignment.match("".join(
@@ -3635,14 +3683,18 @@ def translate(
     sources["preamble.ecpp"], embedded_acl = extract_embedded_acl(
         sources["preamble.ecpp"]
     )
-    record_preamble = translate_record_aliases(
-        specialize_local_mode(sources["preamble.ecpp"], judge_mode)
+    record_preamble = translate_braced_type_lists(
+        translate_record_aliases(
+            specialize_local_mode(sources["preamble.ecpp"], judge_mode)
+        )
     )
     record_main = translate_container_type_names(
-        translate_record_aliases(
-            translate_global_type_aliases(
-                translate_solve_separator(
-                    translate_line_continuations(sources["main.ecpp"])
+        translate_braced_type_lists(
+            translate_record_aliases(
+                translate_global_type_aliases(
+                    translate_solve_separator(
+                        translate_line_continuations(sources["main.ecpp"])
+                    )
                 )
             )
         )

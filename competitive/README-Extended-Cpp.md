@@ -27,6 +27,14 @@ and `unordered_set<T>`. Use `stmap<K,V>` and `stset<T>` for the ordered STL
 containers. The older `uomap` and `uoset` names remain available. This type
 rewrite does not affect the functional `map(function, values)` form.
 
+Inside template type arguments, `{T, U}` abbreviates `pair<T,U>`, while three
+or more types abbreviate `tuple<...>`. Nested type expressions are supported:
+
+```cpp
+a = vec<{int,ll,str}>(n) // vec<tuple<int,ll,str>>
+b = vec<{int,ll}>(n)     // vec<pair<int,ll>>
+```
+
 `bo` always removes `a.out` when it finishes, including failed builds and
 runtime errors. `init` clears `copier.txt`, `in.txt`, `expected_out.txt`,
 `out.txt`, `main.ecpp`, `main.cpp`, `main_temporary.cpp`, and `generator.py`.
@@ -590,7 +598,7 @@ fast = set<str>{"x", "y"}
 fast.remove("x")
 ```
 
-`pq<T>` is a min-heap and `inv_pq<T>` is a max-heap. For both aliases,
+`pq<T>` is a min-heap and `invpq<T>` is a max-heap. For both aliases,
 `add(value)` inserts a value, while `pop()` returns the value that was at
 `top()` and removes it from the queue:
 
@@ -599,7 +607,7 @@ low = pq<int>()
 low.add(3); low.add(1)
 print(low.pop()) // 1; the queue now contains only 3
 
-high = inv_pq<int>()
+high = invpq<int>()
 high.add(3); high.add(1)
 print(high.pop()) // 3; the queue now contains only 1
 ```
@@ -610,7 +618,7 @@ versions its C++ storage internally, so subsequent uses keep the ECPP name:
 ```cpp
 h = pq<ll>()
 // use h as a min-heap
-h = inv_pq<ll>()
+h = invpq<ll>()
 // h is now a fresh max-heap
 ```
 
