@@ -716,6 +716,21 @@ v = vec(3, {inf, inf})     // v = vector(3, pair{inf, inf});
 chmin(p, {x, y})           // chmin(p, pair{x, y});
 ```
 
+## Boolean matrices
+
+An inferred two-dimensional boolean vector uses a contiguous byte-addressable
+`bool` matrix instead of `std::vector<bool>`:
+
+```cpp
+a = vec(height, vec(width, false))
+a[i][j] = true
+```
+
+This keeps `a[i][j]`, `len(a)`, `len(a[i])`, row iteration, deep copies, and
+`at()` available while avoiding the bit-proxy cost of `vector<bool>` in hot
+nested loops. Each element occupies one byte. Write an explicit
+`vec<vec<bool>>` when packed-bit storage is more important than access speed.
+
 ## Vector comprehensions and `iota`
 
 A two-argument `vector<T>` declaration maps a source range into a new vector

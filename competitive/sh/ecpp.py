@@ -1409,6 +1409,57 @@ def translate_vector_comprehensions(source: str) -> str:
     return source
 
 
+def translate_inferred_bool_matrices(source: str) -> str:
+    """Store inferred two-dimensional boolean vectors as contiguous bool arrays."""
+    call = re.compile(r"(?<![\w.:>])vec[ \t]*\(")
+    mask = code_mask(source)
+    replacements: list[tuple[int, int, str]] = []
+
+    for match in call.finditer(source):
+        if not mask[match.start()]:
+            continue
+        opening = match.end() - 1
+        closing = find_closing_paren(source, opening, mask)
+        arguments = split_top_level_commas(source[opening + 1 : closing])
+        if len(arguments) != 2:
+            continue
+        rows, nested = (argument.strip() for argument in arguments)
+        nested_call = re.match(r"vec[ \t]*\(", nested)
+        if not nested_call:
+            continue
+        nested_opening = nested_call.end() - 1
+        nested_mask = code_mask(nested)
+        nested_closing = find_closing_paren(nested, nested_opening, nested_mask)
+        if nested_closing != len(nested) - 1:
+            continue
+        nested_arguments = split_top_level_commas(
+            nested[nested_opening + 1 : nested_closing]
+        )
+        if len(nested_arguments) != 2:
+            continue
+        columns, value = (argument.strip() for argument in nested_arguments)
+        if value not in {"false", "true"} or not rows or not columns:
+            continue
+        replacements.append(
+            (
+                match.start(),
+                closing + 1,
+                f"__ecpp_bool_matrix({rows},{columns},{value})",
+            )
+        )
+
+    # Only outermost non-overlapping calls are useful.  Applying them in reverse
+    # keeps all recorded source offsets valid.
+    accepted: list[tuple[int, int, str]] = []
+    for replacement in sorted(replacements, key=lambda item: (item[0], -item[1])):
+        if accepted and replacement[0] < accepted[-1][1]:
+            continue
+        accepted.append(replacement)
+    for start, end, replacement in reversed(accepted):
+        source = source[:start] + replacement + source[end:]
+    return source
+
+
 def translate_iota_calls(source: str) -> str:
     """Route unqualified ecpp `iota(...)` calls away from `std::iota`."""
     call = re.compile(r"(?<![\w.:>])iota(?P<spacing>[ \t]*)\(")
@@ -3730,6 +3781,7 @@ def translate(
     translated_main = translate_count_calls(translated_main)
     translated_main = translate_iota_calls(translated_main)
     translated_main = translate_vector_comprehensions(translated_main)
+    translated_main = translate_inferred_bool_matrices(translated_main)
     translated_main = translate_heap_type_reassignments(translated_main)
     implicit_main = translate_implicit_let_declarations(
         translated_main,
