@@ -4,4 +4,67 @@ using namespace std;using ll=long long;using ull=unsigned long long;using ui=uns
 #line 1 "main.ecpp"
 void solve(){
 #line 1 "main.ecpp"
-}
+#line 1 "main.ecpp"
+auto n=(int)(input());
+#line 2 "main.ecpp"
+auto s=(str)(input());
+#line 3 "main.ecpp"
+if(n<=200){
+#line 4 "main.ecpp"
+auto res=0;
+#line 5 "main.ecpp"
+for(int i=0,__e1=(n);i<__e1;++i)for(int j=(i),__e2=(n);j<__e2;++j){
+#line 6 "main.ecpp"
+#line 6 "main.ecpp"
+auto c3=0;
+#line 6 "main.ecpp"
+auto c2=c3;
+#line 6 "main.ecpp"
+auto c1=c2;
+#line 7 "main.ecpp"
+for(int k=(i),__e3=(j+1);k<__e3;++k){
+#line 8 "main.ecpp"
+if(s[i]=='J')c1++;
+#line 9 "main.ecpp"
+else if(s[i]=='O')c2++;
+#line 10 "main.ecpp"
+else c3++;
+#line 11 "main.ecpp"
+;}
+#line 12 "main.ecpp"
+if(c1==c2&&c2==c3)chmax(res,j-i+1);
+#line 13 "main.ecpp"
+;}
+#line 14 "main.ecpp"
+print(res);
+#line 15 "main.ecpp"
+return;
+#line 16 "main.ecpp"
+;}
+#line 17 "main.ecpp"
+#line 17 "main.ecpp"
+auto c3=0;
+#line 17 "main.ecpp"
+auto c2=c3;
+#line 17 "main.ecpp"
+auto c1=c2;
+#line 18 "main.ecpp"
+auto m=std::map<pair<int,int>,vec<int>>();
+#line 19 "main.ecpp"
+for(int i=0,__e4=(n);i<__e4;++i){
+#line 20 "main.ecpp"
+if(s[i]=='J')c1++;
+#line 21 "main.ecpp"
+else if(s[i]=='O')c2++;
+#line 22 "main.ecpp"
+else c3++;
+#line 23 "main.ecpp"
+([&](auto&&__r)->decltype(auto){return __d_append(std::forward<decltype(__r)>(__r),i);})(m[pair{c2-c1,c3-c1}]);
+#line 24 "main.ecpp"
+;}
+#line 25 "main.ecpp"
+auto res=0;
+#line 26 "main.ecpp"
+for(auto&&__g1=(m);auto[p,v]:__g1)chmax(res,my_max(v)-my_min(v));
+#line 27 "main.ecpp"
+print(res);}

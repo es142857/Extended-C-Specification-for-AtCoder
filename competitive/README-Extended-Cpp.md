@@ -101,6 +101,10 @@ numbers.
 
 ## VS Code highlighting
 
+The bare ECPP statement `exit` is highlighted with the same return-control
+scope as `return` and transpiles to `return`. Function-call forms such as
+`exit(0)` are not part of this shorthand.
+
 The Extended C++ VS Code injection grammar is stored in
 `vscode/extended-cpp.injection.json`. In addition to `let`, it recognizes
 square-bracket vector literals before the base C++ grammar can

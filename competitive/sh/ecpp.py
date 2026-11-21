@@ -1525,6 +1525,7 @@ def translate_nonloop_macros(source: str) -> str:
     replacements: list[tuple[int, int, str]] = []
     tokens = {
         "elif": "else if",
+        "exit": "return",
         "kill": '{debug("killed");assert(0);}',
         "Seg": "segtree_<S,[](S a,S b){return op(a,b);}>",
         "LazySeg": (
@@ -1533,7 +1534,7 @@ def translate_nonloop_macros(source: str) -> str:
             "[](F f,F g){return composition(f,g);}>"
         ),
     }
-    token_pattern = re.compile(r"\b(?:elif|kill|Seg|LazySeg)\b")
+    token_pattern = re.compile(r"\b(?:elif|exit|kill|Seg|LazySeg)\b")
     for match in token_pattern.finditer(source):
         if mask[match.start()]:
             replacements.append((match.start(), match.end(), tokens[match.group()]))

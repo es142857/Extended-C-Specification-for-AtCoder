@@ -55,6 +55,10 @@
         {
             "name": "storage.type.primitive.cpp storage.type.built-in.primitive.cpp",
             "match": "\\blet\\b"
+        },
+        {
+            "name": "keyword.control.return.cpp",
+            "match": "\\bexit\\b"
         }
     ],
     "repository": {
