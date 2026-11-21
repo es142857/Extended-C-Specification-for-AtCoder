@@ -980,9 +980,10 @@ n = int(input())
 print(twice(n))
 ```
 
-The preamble provides a factorial table through `fac`, initialized as
-`Fac(1.2e7)` for `mint`. Use `fac.f(n)` for `n!` and `fac.c(n, r)` for
-the binomial coefficient.
+The preamble provides a factorial table through `fac`, configured as
+`Fac(1.2e7)` for `mint`. Its storage is lazy: an unused `fac` allocates no
+table, and `fac.f(n)` or `fac.c(n, r)` extends it only through `n`. Use
+`fac.f(n)` for `n!` and `fac.c(n, r)` for the binomial coefficient.
 
 ```cpp
 print(fac.f(n), fac.c(n, r))
