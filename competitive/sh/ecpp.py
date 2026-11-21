@@ -2747,8 +2747,8 @@ def translate_implicit_let_declarations(
             brace_scan_start = leading_closures.end()
         defined_before = set().union(*scopes)
 
-        list_match = re.match(
-            r"^(?P<indent>[ \t]*)\["
+        list_match = re.search(
+            r"(?:(?P<indent>^[ \t]*)|(?P<block>\{[ \t]*))\["
             r"(?P<names>[A-Za-z_]\w*(?:[ \t]*,[ \t]*[A-Za-z_]\w*)+)"
             r"\][ \t]*=(?!=)",
             code,
@@ -2764,20 +2764,22 @@ def translate_implicit_let_declarations(
         )
 
         inserted_names: list[str] = []
-        indent_length = 0
+        insertion_position = 0
+        declaration_in_new_block = False
         if list_match:
             candidates = re.findall(r"[A-Za-z_]\w*", list_match.group("names"))
             if len(set(candidates)) == len(candidates) and all(
                 not is_defined(candidate) for candidate in candidates
             ):
                 inserted_names = candidates
-                indent_length = len(list_match.group("indent"))
+                insertion_position = list_match.end("indent") if list_match.group("indent") is not None else list_match.end("block")
+                declaration_in_new_block = list_match.group("block") is not None
         elif reference_match and not is_defined(reference_match.group("name")):
             inserted_names = [reference_match.group("name")]
-            indent_length = len(reference_match.group("indent"))
+            insertion_position = len(reference_match.group("indent"))
         elif name_match and not is_defined(name_match.group("name")):
             inserted_names = [name_match.group("name")]
-            indent_length = len(name_match.group("indent"))
+            insertion_position = len(name_match.group("indent"))
 
         body = translate_python_list_literals(body, defined_before, type_names)
         body_mask = code_mask(body)
@@ -2787,9 +2789,10 @@ def translate_implicit_let_declarations(
         )
 
         if inserted_names:
-            body = body[:indent_length] + "let " + body[indent_length:]
-            code = code[:indent_length] + "let " + code[indent_length:]
-            scopes[-1].update(inserted_names)
+            body = body[:insertion_position] + "let " + body[insertion_position:]
+            code = code[:insertion_position] + "let " + code[insertion_position:]
+            if not declaration_in_new_block:
+                scopes[-1].update(inserted_names)
 
         scopes[-1].update(binding_names(code))
         scopes[-1].update(explicit_declaration_names(code, type_names))
@@ -2810,6 +2813,8 @@ def translate_implicit_let_declarations(
             code,
         ):
             block_names.update(re.findall(r"[A-Za-z_]\w*", loop_match.group(1)))
+        if declaration_in_new_block:
+            block_names.update(inserted_names)
 
         opening = code.find("(")
         if opening >= 0 and "{" in code[opening:]:
@@ -2942,39 +2947,23 @@ def translate_let_declarations(source: str) -> str:
 
 def translate_bracket_let_declarations(source: str) -> str:
     """Allow bracket bindings to unpack both tuple-like and indexable values."""
-    code_comments = comment_mask(source)
     declaration = re.compile(
-        r"^(?P<indent>[ \t]*)let[ \t]*\["
+        r"\blet[ \t]*\["
         r"(?P<names>[A-Za-z_]\w*(?:[ \t]*,[ \t]*[A-Za-z_]\w*)*)"
-        r"\][ \t]*=[ \t]*(?P<value>.+?)$"
+        r"\][ \t]*=[ \t]*"
     )
-
-    output: list[str] = []
-    offset = 0
-    for line in source.splitlines(keepends=True):
-        newline = ""
-        body = line
-        if line.endswith("\r\n"):
-            body, newline = line[:-2], "\r\n"
-        elif line.endswith("\n") or line.endswith("\r"):
-            body, newline = line[:-1], line[-1]
-
-        comment_at = len(body)
-        for index in range(len(body) - 1):
-            if body[index : index + 2] == "//" and code_comments[offset + index]:
-                comment_at = index
-                break
-
-        statement = body[:comment_at]
-        comment = body[comment_at:]
-        trailing = statement[len(statement.rstrip()) :]
-        statement = statement.rstrip()
-        remainder = ""
-        statement_mask = code_mask(statement)
+    mask = code_mask(source)
+    replacements: list[tuple[int, int, str]] = []
+    for match in declaration.finditer(source):
+        if not mask[match.start()]:
+            continue
         round_depth = square_depth = brace_depth = 0
-        for index, character in enumerate(statement):
-            if not statement_mask[index]:
+        end = match.end()
+        while end < len(source):
+            if not mask[end]:
+                end += 1
                 continue
+            character = source[end]
             if character == "(":
                 round_depth += 1
             elif character == ")" and round_depth:
@@ -2988,37 +2977,31 @@ def translate_bracket_let_declarations(source: str) -> str:
             elif character == "}" and brace_depth:
                 brace_depth -= 1
             elif (
-                character == ";"
+                character in ";\r\n}"
                 and round_depth == square_depth == brace_depth == 0
             ):
-                remainder = statement[index + 1 :]
-                statement = statement[:index].rstrip()
                 break
-
-        match = declaration.match(statement)
-        if match:
-            names = [name.strip() for name in match.group("names").split(",")]
-            requirements = " ".join(
-                f"__u[{index}];" for index in range(len(names))
-            )
-            elements = ", ".join(
-                f"__u[{index}]" for index in range(len(names))
-            )
-            statement = (
-                f"{match.group('indent')}auto [{match.group('names')}] = "
-                "([&](auto&& __u) { "
-                f"if constexpr (requires {{ {requirements} }}) {{ "
-                f"return std::tuple{{{elements}}}; "
-                "} else { return std::forward<decltype(__u)>("
-                "__u); } "
-                f"}})({match.group('value')});"
-            )
-            output.append(statement + remainder + trailing + comment + newline)
-        else:
-            output.append(line)
-        offset += len(line)
-
-    return "".join(output)
+            end += 1
+        value = source[match.end() : end].strip()
+        if not value:
+            continue
+        names = [name.strip() for name in match.group("names").split(",")]
+        requirements = " ".join(
+            f"__u[{index}];" for index in range(len(names))
+        )
+        elements = ", ".join(f"__u[{index}]" for index in range(len(names)))
+        replacement = (
+            f"auto [{match.group('names')}] = "
+            "([&](auto&& __u) { "
+            f"if constexpr (requires {{ {requirements} }}) {{ "
+            f"return std::tuple{{{elements}}}; "
+            "} else { return std::forward<decltype(__u)>(__u); } "
+            f"}})({value})"
+        )
+        replacements.append((match.start(), end, replacement))
+    for start, end, replacement in reversed(replacements):
+        source = source[:start] + replacement + source[end:]
+    return source
 
 
 def translate_bracket_assignments(source: str) -> str:
@@ -3881,3 +3864,4 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+

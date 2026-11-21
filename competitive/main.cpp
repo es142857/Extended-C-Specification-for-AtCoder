@@ -17,7 +17,7 @@ auto g=Graph<ll>(n*mx);
 #line 3 "main.ecpp"
 auto e=vec<E>();
 #line 4 "main.ecpp"
-for(int __p1=0,__e1=(m);__p1<__e1;++__p1){([&](auto&&__u){if constexpr(requires{__u[0];__u[1];__u[2];__u[3];}){u=__u[0];v=__u[1];a=__u[2];b=__u[3];}else{u=std::get<0>(__u);v=std::get<1>(__u);a=std::get<2>(__u);b=std::get<3>(__u);};})(([&](auto&&__r)->decltype(auto){return __d_map(std::forward<decltype(__r)>(__r),[&](auto&&__v)->decltype(auto){auto&&th=std::forward<decltype(__v)>(__v);return(stoll(th));});})((input(4)));([&](auto&&__r)->decltype(auto){return __d_append(std::forward<decltype(__r)>(__r),typename std::remove_cvref_t<decltype(__r)>::value_type{u-1,v-1,a,b});})(e);});
+for(int __p1=0,__e1=(m);__p1<__e1;++__p1){auto[u,v,a,b]=([&](auto&&__u){if constexpr(requires{__u[0];__u[1];__u[2];__u[3];}){return std::tuple{__u[0],__u[1],__u[2],__u[3]};}else{return std::forward<decltype(__u)>(__u);};})(([&](auto&&__r)->decltype(auto){return __d_map(std::forward<decltype(__r)>(__r),[&](auto&&__v)->decltype(auto){auto&&th=std::forward<decltype(__v)>(__v);return(stoll(th));});})((input(4))));([&](auto&&__r)->decltype(auto){return __d_append(std::forward<decltype(__r)>(__r),typename std::remove_cvref_t<decltype(__r)>::value_type{u-1,v-1,a,b});})(e);}
 #line 5 "main.ecpp"
 #line 5 "main.ecpp"
 auto d=vec<int>(n);
