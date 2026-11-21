@@ -553,6 +553,10 @@ auto d2 = graph2.dist(0);
 auto weight = MST(weighted);
 LCA ancestor(tree, 0);
 int p = ancestor.lca(a, b);
+
+Graph<ll> graph3(n);
+graph3.add(u, v, weight, bidirectional);
+auto d3 = graph3.dij(source);
 ```
 
 `BFS` uses `vector<vector<int>>` and returns `-1` for unreachable vertices.
@@ -561,6 +565,15 @@ The weighted adjacency type for `Dijkstra` and `MST` is
 Unreachable Dijkstra distances and a disconnected MST result are
 `numeric_limits<S>::max()`. `LCA` expects an unweighted tree and preprocesses
 binary-lifting ancestors from the optional root `r`.
+
+`Graph<S>` is the mutable weighted-graph form. `add(u, v, w, bi)` adds the
+edge and adds its reverse when `bi` is true (the default). `dij(s)` returns
+Dijkstra distances, while `mst()` returns the minimum-spanning-tree weight or
+`numeric_limits<S>::max()` when the graph is disconnected.
+
+Graph types whose native API exposes `add_edge(...)` use the shorter
+`add(...)` spelling in ECPP. This includes ACL flow, min-cost-flow, and SCC
+graphs; arguments and return values are forwarded unchanged.
 
 ## Sequence mutation aliases
 

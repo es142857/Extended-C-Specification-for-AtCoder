@@ -3668,7 +3668,7 @@ def specialize_local_mode(source: str, judge: bool | None) -> str:
         raise TranslationError("could not specialize LOCAL startup block")
     submit_pragmas = (
         '_Pragma("GCC optimize(\\"Ofast,unroll-loops\\")") '
-        '_Pragma("GCC target(\\"tune=native\\")")\n'
+        '_Pragma("GCC target(\\"avx2\\")")\n'
     )
     source = source[match.end() :]
     if not judge:
