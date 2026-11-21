@@ -788,11 +788,15 @@ A short aggregate declaration uses comma-separated fields inside braces:
 using Person = {str name, int age, int id}
 // struct Person { str name; int age; int id; };
 
+using Edge = {int u, v, a, ll cost}
+// struct Edge { int u; int v; int a; ll cost; };
+
 person = Person{"Alice", 20, 1}
 ```
 
 Template field types may contain their own commas, such as
-`pair<int, int> position`.
+`pair<int, int> position`. A field containing only a name inherits the type of
+the preceding field; writing a new type changes the inherited type from there.
 
 The walrus operator `name := expression` assigns the expression to `name` and
 leaves `name` as the value of that parenthesized expression. A new name is
@@ -1037,6 +1041,7 @@ inside `solve`.
 Only one separator is allowed, and it cannot be combined with an explicit
 `void solve()` definition. The VS Code grammar highlights the separator in
 red so the global/body boundary remains visible.
+
 
 
 

@@ -2492,6 +2492,26 @@ def translate_record_aliases(source: str) -> str:
                 f"empty field in record declaration {match.group('name')}"
             )
 
+        expanded_fields: list[str] = []
+        previous_type: str | None = None
+        for field in fields:
+            if re.fullmatch(r"[A-Za-z_]\w*", field):
+                if previous_type is None:
+                    raise TranslationError(
+                        f"field {field} in record declaration "
+                        f"{match.group('name')} has no preceding type"
+                    )
+                expanded_fields.append(f"{previous_type} {field}")
+                continue
+            typed_field = re.fullmatch(
+                r"(?P<type>.+\S)[ \t]+(?P<name>[A-Za-z_]\w*)", field
+            )
+            expanded_fields.append(field)
+            previous_type = (
+                typed_field.group("type").strip() if typed_field else None
+            )
+        fields = expanded_fields
+
         end = closing + 1
         while end < len(source) and source[end] in " \t":
             end += 1
@@ -3864,4 +3884,5 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
 
